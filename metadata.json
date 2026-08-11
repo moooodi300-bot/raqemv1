@@ -1,0 +1,8 @@
+{
+  "name": "نظام إدارة مغسلة السيارات والاشتراكات",
+  "description": "تطبيق إدارة المبيعات والاشتراكات والعملاء لمغاسل السيارات",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
