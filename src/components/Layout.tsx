@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, startTransition, type ReactNode } from 'react';
 import {
   LayoutDashboard, ShoppingCart, Users, Package, Truck, Wallet,
   BookOpen, UserCog, BarChart3, FileText, Settings as SettingsIcon,
@@ -33,8 +33,10 @@ export function Layout({ active, onNavigate, children }: LayoutProps) {
   const accent = settings?.brand_accent ?? '#2563eb';
 
   const handleNav = (key: ModuleKey) => {
-    onNavigate(key);
-    setSidebarOpen(false);
+    startTransition(() => {
+      onNavigate(key);
+      setSidebarOpen(false);
+    });
   };
 
   return (

@@ -27,6 +27,11 @@ const BillingPage = React.lazy(() => import('@/pages/BillingPage').then(module =
 function AppContent() {
   const { role, lang, organization } = useAuth();
   const [active, setActive] = useState<ModuleKey>('dashboard');
+  const handleNav = (key: ModuleKey) => {
+    React.startTransition(() => {
+      setActive(key);
+    });
+  };
 
   const effectiveKey = canAccess(role, active, organization?.id) ? active : 'dashboard';
 
@@ -49,15 +54,17 @@ function AppContent() {
   return (
     <>
       <PWAInstallPrompt />
-      <Layout active={effectiveKey} onNavigate={setActive}>
-        {canAccess(role, effectiveKey, organization?.id) ? renderPage() : (
-          <Card><CardBody>
-            <div className="flex flex-col items-center justify-center py-16 text-surface-400">
-              <ShieldAlert className="w-10 h-10 mb-3" />
-              <p className="text-sm">{tr('noPermission', lang)}</p>
-            </div>
-          </CardBody></Card>
-        )}
+      <Layout active={effectiveKey} onNavigate={handleNav}>
+        <Suspense fallback={<div className="flex h-full items-center justify-center p-12"><Spinner label={tr('loading', lang)} /></div>}>
+          {canAccess(role, effectiveKey, organization?.id) ? renderPage() : (
+            <Card><CardBody>
+              <div className="flex flex-col items-center justify-center py-16 text-surface-400">
+                <ShieldAlert className="w-10 h-10 mb-3" />
+                <p className="text-sm">{tr('noPermission', lang)}</p>
+              </div>
+            </CardBody></Card>
+          )}
+        </Suspense>
       </Layout>
     </>
   );

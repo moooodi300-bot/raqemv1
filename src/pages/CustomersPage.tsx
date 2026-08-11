@@ -139,8 +139,6 @@ export function CustomersPage() {
     }
   }, [showProfile, customers, custSubs, currentTenantId]);
 
-  if (loading) return <Spinner label={tr('loading', lang)} />;
-
   const filtered = useMemo(() => {
     let res = customers;
     if (search) {
@@ -150,6 +148,8 @@ export function CustomersPage() {
     // Limit to 100 to avoid massive re-renders
     return res.slice(0, 100);
   }, [customers, search]);
+
+  if (loading) return <Spinner label={tr('loading', lang)} />;
 
   const addCustomer = async () => {
     const trimmedName = newCust.name.trim();
