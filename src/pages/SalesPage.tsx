@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   ShoppingCart, Trash2, Gift, Search, CreditCard, Banknote,
   SplitSquareHorizontal, Check, MessageCircle, X, UserPlus, Car,
@@ -38,6 +38,8 @@ export function SalesPage() {
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const allCustomersRef = useRef<Customer[]>([]);
+  const [displayedCustomers, setDisplayedCustomers] = useState<Customer[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -133,6 +135,8 @@ export function SalesPage() {
 
       setServices(allServices as any);
       setCustomers(loadedCu);
+      allCustomersRef.current = loadedCu;
+      setDisplayedCustomers(loadedCu.slice(0, 50));
       setStaff(loadedSt);
       setBranches(loadedBr);
       setSales(loadedSa);
@@ -153,6 +157,14 @@ export function SalesPage() {
     return () => window.removeEventListener('raqam_data_updated', handleDataUpdated);
   }, [currentTenantId]);
 
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return allCustomersRef.current.slice(0, 50);
+    const searchLower = customerSearch.toLowerCase();
+    return allCustomersRef.current.filter(
+      (c) => c.name.toLowerCase().includes(searchLower) || (c.phone ?? '').includes(customerSearch) || (c.plate_number ?? '').toLowerCase().includes(searchLower)
+    ).slice(0, 50);
+  }, [customerSearch, customers]);
+
   if (loading) return <Spinner label={tr('loading', lang)} />;
 
   const isWashItem = (cat: string, isProd?: boolean) => cat !== 'اشتراكات' && cat !== 'products' && !isProd;
@@ -172,11 +184,9 @@ export function SalesPage() {
     setCart((prev) => prev.map((i) => (i.service.id === id ? { ...i, qty: i.qty + delta } : i)).filter((i) => i.qty > 0));
   };
 
-  const filteredCustomers = customers.filter(
-    (c) => c.name.includes(customerSearch) || (c.phone ?? '').includes(customerSearch) || (c.plate_number ?? '').includes(customerSearch)
-  );
 
-  const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
+
+  const selectedCustomer = allCustomersRef.current.find((c) => c.id === customerId) ?? null;
   const customerSub = custSubs.find((cs) => cs.customer_id === customerId && cs.status === 'active');
   const subDef = customerSub ? subs.find((s) => s.id === customerSub.subscription_id) : null;
   const hasActiveSub = !!customerSub && (customerSub.washes_remaining ?? 0) > 0 && (!customerSub.end_date || new Date(customerSub.end_date) >= new Date()) && cartWashes > 0;

@@ -32,18 +32,27 @@ export function PurchasesPage() {
 
   const loadData = async () => {
     try {
+      setErrorMsg(null);
       const stored = localStorage.getItem(`tenant_purchases_${currentTenantId}`);
       if (stored) {
         setInvoices(JSON.parse(stored));
       } else {
         const { data, error } = await supabase.from('purchase_invoices').select('*').order('created_at', { ascending: false });
-        if (!error && data) {
+        if (error) {
+          if (error.message === 'Failed to fetch') {
+            setErrorMsg('Request Failed: Unable to connect to database.');
+          } else {
+            setErrorMsg(error.message);
+          }
+          setInvoices([]);
+        } else if (data) {
           setInvoices(data);
         } else {
           setInvoices([]);
         }
       }
-    } catch {
+    } catch (err: any) {
+      setErrorMsg('Request Failed: ' + (err.message || 'Unknown error'));
       setInvoices([]);
     } finally {
       setLoading(false);

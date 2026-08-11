@@ -10,8 +10,7 @@ import type { Sale, Customer } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { getTenantCustomerSubscriptions } from '@/lib/subscriptionStore';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
 
 export function InvoicesPage() {
   const { organization, settings, lang } = useAuth();

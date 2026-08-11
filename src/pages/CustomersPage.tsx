@@ -141,9 +141,15 @@ export function CustomersPage() {
 
   if (loading) return <Spinner label={tr('loading', lang)} />;
 
-  const filtered = customers.filter(
-    (c) => c.name.includes(search) || (c.phone ?? '').includes(search) || (c.plate_number ?? '').includes(search)
-  );
+  const filtered = useMemo(() => {
+    let res = customers;
+    if (search) {
+      const s = search.toLowerCase();
+      res = res.filter(c => c.name.toLowerCase().includes(s) || (c.phone ?? '').includes(search) || (c.plate_number ?? '').toLowerCase().includes(s));
+    }
+    // Limit to 100 to avoid massive re-renders
+    return res.slice(0, 100);
+  }, [customers, search]);
 
   const addCustomer = async () => {
     const trimmedName = newCust.name.trim();

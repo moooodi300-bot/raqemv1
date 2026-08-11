@@ -12,16 +12,17 @@ import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { PinEntryScreen } from '@/components/PinEntryScreen';
 import type { Staff } from '@/lib/types';
 
-import { DashboardPage } from '@/pages/DashboardPage';
-import { SalesPage } from '@/pages/SalesPage';
-import { InvoicesPage } from '@/pages/InvoicesPage';
-import { CustomersPage } from '@/pages/CustomersPage';
-import { PurchasesPage } from '@/pages/PurchasesPage';
-import { JobCardsPage } from '@/pages/JobCardsPage';
-import { ReportsPage } from '@/pages/ReportsPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { MobilePage } from '@/pages/MobilePage';
-import { BillingPage } from '@/pages/BillingPage';
+import React, { Suspense } from 'react';
+const DashboardPage = React.lazy(() => import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const SalesPage = React.lazy(() => import('@/pages/SalesPage').then(module => ({ default: module.SalesPage })));
+const InvoicesPage = React.lazy(() => import('@/pages/InvoicesPage').then(module => ({ default: module.InvoicesPage })));
+const CustomersPage = React.lazy(() => import('@/pages/CustomersPage').then(module => ({ default: module.CustomersPage })));
+const PurchasesPage = React.lazy(() => import('@/pages/PurchasesPage').then(module => ({ default: module.PurchasesPage })));
+const JobCardsPage = React.lazy(() => import('@/pages/JobCardsPage').then(module => ({ default: module.JobCardsPage })));
+const ReportsPage = React.lazy(() => import('@/pages/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const SettingsPage = React.lazy(() => import('@/pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const MobilePage = React.lazy(() => import('@/pages/MobilePage').then(module => ({ default: module.MobilePage })));
+const BillingPage = React.lazy(() => import('@/pages/BillingPage').then(module => ({ default: module.BillingPage })));
 
 function AppContent() {
   const { role, lang, organization } = useAuth();
