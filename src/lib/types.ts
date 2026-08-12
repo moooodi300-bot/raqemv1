@@ -376,3 +376,31 @@ export interface DiscountCode {
   min_invoice_amount?: number;
   max_discount_amount?: number;
 }
+export interface JobCard {
+  id: string;
+  customerId?: string;
+  customerName: string;
+  phone: string;
+  carType: string;
+  plate: string;
+  vehicleColor?: string;
+  mileage: string;
+  notes: string;
+  status: 'waiting' | 'in_progress' | 'completed' | 'paid' | 'delivered';
+  photosCount: number;
+  subtotal?: number;
+  discount?: number;
+  deposit?: number;
+  remaining?: number;
+  totalAmount: number;
+  paymentStatus?: 'unpaid' | 'partially_paid' | 'paid';
+  policy_snapshot?: string;
+  policy_accepted?: boolean;
+  warranty_snapshot?: string;
+  invoice_id?: string;
+  sale_id?: string;
+  createdAt: string;
+  staffId?: string;
+  staffName?: string;
+  services: any[];
+}

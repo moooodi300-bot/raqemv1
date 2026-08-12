@@ -9,6 +9,7 @@ import { consumeSubscriptionWash, getTenantCustomerSubscriptions } from '@/lib/s
 import { useAuth, usePermissions } from '@/lib/auth';
 import type { Customer } from '@/lib/types';
 import { Search, X, MessageCircle } from 'lucide-react';
+import { JobCardCreator } from '@/components/JobCardCreator';
 
 type JobStatus = 'waiting' | 'in_progress' | 'completed' | 'paid' | 'delivered';
 
@@ -198,47 +199,43 @@ export function JobCardsPage() {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
-      // Basic text-based PDF for speed and zero dependencies on html2canvas
-      doc.addFont('Amiri', 'Amiri', 'normal'); // We would need Arabic font, but let's use default or simple
       doc.setFontSize(20);
       doc.text(settings?.company_name || 'Raqam POS', 105, 20, { align: 'center' });
       doc.setFontSize(16);
-      doc.text(type === 'receipt' ? 'تقرير استلام سيارة' : 'فاتورة نهائية', 105, 30, { align: 'center' });
+      doc.text(type === 'receipt' ? 'Vehicle Receipt' : 'Final Invoice', 105, 30, { align: 'center' });
       
       doc.setFontSize(12);
       doc.text(`Customer: ${card.customerName}`, 20, 50);
       doc.text(`Phone: ${card.phone}`, 20, 60);
       doc.text(`Car: ${card.carType} - ${card.plate}`, 20, 70);
       doc.text(`Job Card #: ${card.id}`, 20, 80);
-      doc.text(`Date: ${new Date(card.createdAt).toLocaleString('ar-SA')}`, 20, 90);
+      doc.text(`Date: ${new Date(card.createdAt).toLocaleString('en-US')}`, 20, 90);
+      doc.text(`Staff: ${activeEmployee?.name || 'Owner'}`, 20, 100);
       
-      doc.text(`Services:`, 20, 110);
-      let y = 120;
-      card.services.forEach((s: any) => {
+      doc.text(`Services:`, 20, 120);
+      let y = 130;
+      card.services?.forEach((s: any) => {
          doc.text(`- ${s.name} (${s.price} SAR)`, 30, y);
          y += 10;
       });
       
-      doc.text(`Total: ${card.totalAmount} SAR`, 20, y + 10);
+      doc.text(`Total Amount: ${card.totalAmount} SAR`, 20, y + 10);
       
       doc.save(`JobCard_${card.id}_${type}.pdf`);
-      
-      alert('تم إنشاء وتنزيل ملف PDF بنجاح. يمكنك الآن إرفاقه في الواتساب إذا رغبت.');
     } catch(e) {
       console.error('PDF generation failed', e);
-      alert('حدث خطأ أثناء إنشاء PDF');
     }
   };
 
   const handleWhatsAppWithPDF = async (card: JobCard, type: 'receipt' | 'invoice') => {
     await generateReceiptPDF(card, type);
-    const msg = type === 'receipt' ? `مرحباً ${card.customerName}،
-تم استلام سيارتك (${card.carType} - ${card.plate}) بنجاح.
-رقم الكرت: ${card.id}
-(تجدون تقرير الاستلام مرفقاً)` : `مرحباً ${card.customerName}،
-تم الانتهاء من العمل على سيارتك (${card.carType} - ${card.plate}).
-إجمالي الفاتورة: ${card.totalAmount} ريال.
-(تجدون الفاتورة النهائية مرفقة)`;
+    const msg = type === 'receipt' ? `Hello ${card.customerName},
+Your vehicle (${card.carType} - ${card.plate}) has been received successfully.
+Job Card #: ${card.id}
+(Receipt document is attached)` : `Hello ${card.customerName},
+Work on your vehicle (${card.carType} - ${card.plate}) is completed.
+Total Invoice: ${card.totalAmount} SAR.
+(Final Invoice document is attached)`;
     const url = `https://wa.me/${card.phone.replace(/^0/, '966')}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
@@ -320,125 +317,19 @@ const toggleService = (srv: any) => {
         )}
       </div>
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إنشاء كرت عمل" size="lg">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <h4 className="font-bold text-surface-800 border-b pb-2">بيانات العميل</h4>
-                              {!selectedCustomerId ? (
-                 <div className="relative">
-                   <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-surface-400" />
-                   <Input placeholder="ابحث باسم العميل أو الجوال" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} className="pr-10" />
-                   {customerSearch && (
-                     <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-surface-200 bg-white absolute z-10 w-full shadow-lg">
-                       {customers.filter(c => c.name.includes(customerSearch) || (c.phone ?? '').includes(customerSearch)).slice(0, 5).map(c => (
-                         <button key={c.id} onClick={() => { 
-                             setSelectedCustomerId(c.id); 
-                             setForm({...form, customerName: c.name, phone: c.phone || '', plate: c.plate_number || '', carType: c.vehicle_type ? c.vehicle_type + ' ' + (c.vehicle_brand || '') + ' ' + (c.vehicle_model || '') : ''}); 
-                             setCustomerSearch(''); 
-                         }} className="w-full text-right px-3 py-2 hover:bg-surface-50 border-b border-surface-50 last:border-0">
-                           <p className="text-sm font-medium text-surface-700">{c.name}</p>
-                           <p className="text-xs text-surface-400">{c.phone}</p>
-                         </button>
-                       ))}
-                       {customers.filter(c => c.name.includes(customerSearch) || (c.phone ?? '').includes(customerSearch)).length === 0 && (
-                         <div className="p-3 text-sm text-center text-surface-500">لا يوجد عميل بهذا الاسم. يرجى إضافته من إدارة العملاء.</div>
-                       )}
-                     </div>
-                   )}
-                 </div>
-               ) : (
-                 <div className="flex items-center justify-between p-3 rounded-xl bg-primary-50 border border-primary-200">
-                   <div>
-                     <p className="text-sm font-medium text-surface-700">{form.customerName}</p>
-                     <p className="text-xs text-surface-500">{form.phone}</p>
-                   </div>
-                   <button onClick={() => { setSelectedCustomerId(''); setForm({...form, customerName: '', phone: ''}); }} className="text-xs text-surface-400 hover:text-rose-500"><X className="w-4 h-4" /></button>
-                 </div>
-               )}
-            </div>
-            <div className="space-y-4">
-              <h4 className="font-bold text-surface-800 border-b pb-2">بيانات المركبة</h4>
-              <div><Label>نوع السيارة وموديلها *</Label><Input value={form.carType} onChange={e => setForm({...form, carType: e.target.value})} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>رقم اللوحة</Label><Input value={form.plate} onChange={e => setForm({...form, plate: e.target.value})} /></div>
-                <div><Label>الممشى (كم)</Label><Input type="number" value={form.mileage} onChange={e => setForm({...form, mileage: e.target.value})} /></div>
-              </div>
-                         </div>
-             
-             <div className="mt-4 pt-4 border-t border-surface-100">
-                <Label className="mb-2">إضافة صنف/خدمة يدوية</Label>
-                <div className="flex gap-2">
-                   <div className="flex-1">
-                     <Input placeholder="اسم الخدمة" value={customItem.name} onChange={e => setCustomItem({...customItem, name: e.target.value})} />
-                   </div>
-                   <div className="w-24">
-                     <Input type="number" placeholder="السعر" value={customItem.price} onChange={e => setCustomItem({...customItem, price: e.target.value})} />
-                   </div>
-                   <Button variant="outline" onClick={() => {
-                      if (customItem.name && customItem.price) {
-                         const srv = { id: 'custom-' + Date.now(), name: customItem.name, price: Number(customItem.price) };
-                         setAvailableServices([...availableServices, srv]);
-                         setForm({...form, selectedServices: [...form.selectedServices, srv]});
-                         setCustomItem({ name: '', price: '' });
-                      }
-                   }} className="bg-surface-100">إضافة</Button>
-                </div>
-             </div>
-          </div>
-          
-          <div className="bg-white p-4 rounded-xl border border-surface-200">
-             <Label className="flex items-center gap-2 text-surface-800 mb-3 font-bold">
-               <ListChecks className="w-5 h-5 text-primary-600" /> الخدمات المطلوبة (الحد الأقصى 10)
-             </Label>
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-               {availableServices.map(srv => {
-                 const isSelected = form.selectedServices.find(s => s.id === srv.id);
-                 return (
-                   <div key={srv.id} onClick={() => toggleService(srv)} className={`p-3 border rounded-xl cursor-pointer flex justify-between transition-colors h-full ${isSelected ? 'bg-primary-50 border-primary-400' : 'bg-surface-50 border-surface-200 hover:border-primary-300'}`}>
-                     <div className="flex flex-col justify-between">
-                       <span className={`text-sm font-bold leading-snug break-words ${isSelected ? 'text-primary-900' : 'text-surface-800'}`}>{srv.name}</span>
-                       <span className="text-sm font-black text-primary-700 mt-2">{srv.price} ريال</span>
-                     </div>
-                     {isSelected && <CheckCircle2 className="w-5 h-5 text-primary-600 shrink-0 ml-2" />}
-                   </div>
-                 );
-               })}
-             </div>
-          </div>
-
-          <div className="bg-surface-50 p-4 rounded-xl border border-surface-200">
-             <Label className="flex items-center gap-2 text-surface-800 mb-3 font-bold">
-               <Camera className="w-5 h-5 text-primary-600" /> تصوير وفحص السيارة المباشر
-             </Label>
-             <div className="grid grid-cols-5 gap-2">
-                {[1,2,3,4,5,6,7,8,9,10].map(i => (
-                  <label key={i} className="aspect-square bg-white border-2 border-dashed border-surface-300 rounded-lg flex flex-col items-center justify-center text-surface-400 hover:border-primary-400 hover:text-primary-600 cursor-pointer transition-colors relative overflow-hidden">
-                     <Camera className="w-5 h-5 mb-1" />
-                     <span className="text-[10px]">التقط {i}</span>
-                     <input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                           setForm({...form, photosCount: form.photosCount + 1});
-                           e.target.parentElement!.classList.add('bg-primary-100');
-                        }
-                     }} />
-                  </label>
-                ))}
-             </div>
-          </div>
-          <div>
-             <Label>ملاحظات الاستلام (خدوش، طلبات خاصة...)</Label>
-             <Textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="سجل حالة السيارة من الخارج والداخل..." />
-          </div>
-          <div className="flex items-center justify-between p-4 bg-primary-50 rounded-xl border border-primary-100">
-             <span className="font-bold text-primary-900">إجمالي الفاتورة المتوقع (شامل الضريبة):</span>
-             <span className="text-2xl font-black text-primary-700">{formTotal} ريال</span>
-          </div>
-          <Button onClick={handleCreate} disabled={!selectedCustomerId || !form.carType || formTotal === 0} className="w-full h-12 text-lg font-bold">
-            حفظ وإنشاء الكرت
-          </Button>
-        </div>
-      </Modal>
+            <JobCardCreator 
+        open={showAdd} 
+        onClose={() => setShowAdd(false)} 
+        currentTenantId={currentTenantId}
+        customers={customers}
+        availableServices={availableServices}
+        settings={settings}
+        onJobCardCreated={(card) => {
+            saveCards([card, ...cards]);
+            // the modal inside JobCardCreator will stay open for success state,
+            // we let the user close it from there, which will trigger onClose
+        }}
+      />
 
       <Modal open={!!viewCard} onClose={() => setViewCard(null)} title={`تفاصيل كرت العمل - ${viewCard?.id}`} size="md">
         {viewCard && (

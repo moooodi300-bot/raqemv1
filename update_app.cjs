@@ -1,6 +1,21 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/App.tsx', 'utf8');
+let code = fs.readFileSync('src/App.tsx', 'utf8');
 
-content = content.replace(/if \(\!session\) \{[\s\S]*?return <LoginPage onSignUpClick=\{\(\) => setIsSignUp\(true\)\} \/>;\n  \}/m, '');
+const importStatement = `import { AdminApp } from '@/admin/AdminApp';\n\nfunction AppContent()`;
+code = code.replace(/function AppContent\(\)/, importStatement);
 
-fs.writeFileSync('src/App.tsx', content);
+const gateCode = `function App() {
+  const path = window.location.pathname;
+  if (path.startsWith('/admin')) {
+    return <AdminApp />;
+  }
+
+  return (
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
+  );
+}`;
+
+code = code.replace(/function App\(\) {[\s\S]*?}/, gateCode);
+fs.writeFileSync('src/App.tsx', code);

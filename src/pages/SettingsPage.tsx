@@ -82,7 +82,7 @@ export function SettingsPage() {
   useEffect(() => { 
     loadVehicles(); 
     loadSubs(); 
-  }, [organization?.id]);
+  }, [organization?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const handleSaveVehicles = () => {
     localStorage.setItem(`mobile_vehicles_${currentTenantId}`, JSON.stringify(vehicles));
@@ -120,7 +120,7 @@ export function SettingsPage() {
     } catch(e) {}
   };
   
-  useEffect(() => { loadServicesAndProducts(); }, [organization]);
+  useEffect(() => { loadServicesAndProducts(); }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     setLoading(true);

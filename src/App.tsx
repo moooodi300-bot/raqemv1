@@ -24,6 +24,8 @@ const SettingsPage = React.lazy(() => import('@/pages/SettingsPage').then(module
 const MobilePage = React.lazy(() => import('@/pages/MobilePage').then(module => ({ default: module.MobilePage })));
 const BillingPage = React.lazy(() => import('@/pages/BillingPage').then(module => ({ default: module.BillingPage })));
 
+import { AdminApp } from '@/admin/AdminApp';
+
 function AppContent() {
   const { role, lang, organization, activeEmployee } = useAuth();
   const [active, setActive] = useState<ModuleKey>('dashboard');
@@ -127,6 +129,11 @@ function Gate() {
 }
 
 function App() {
+  const path = window.location.pathname;
+  if (path.startsWith('/admin')) {
+    return <AdminApp />;
+  }
+
   return (
     <AuthProvider>
       <Gate />
