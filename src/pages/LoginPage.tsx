@@ -201,11 +201,16 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
                       </Button>
                     ))}
                   </div>
-                  <p className="text-sm text-surface-600">
-                    ليس لديك حساب؟{' '}
-                    <button onClick={onSignUpClick} className="font-bold text-primary-600 hover:text-primary-700">
-                      إنشاء حساب جديد
-                    </button>
+                  <p className="text-sm text-surface-600 mt-6 pt-6 border-t border-surface-100 flex flex-col gap-2">
+                    <span>
+                      ليس لديك حساب؟{' '}
+                      <button onClick={onSignUpClick} className="font-bold text-primary-600 hover:text-primary-700">
+                        إنشاء حساب جديد
+                      </button>
+                    </span>
+                    <a href="/admin" className="text-xs font-bold text-surface-400 hover:text-primary-600 transition-colors mt-2">
+                      SaaS Admin Portal (لوحة إدارة المنصة) &rarr;
+                    </a>
                   </p>
                 </div>
               )}
