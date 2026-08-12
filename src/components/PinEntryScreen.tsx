@@ -4,7 +4,7 @@ import { Shield, User, Lock, ArrowRight, X } from 'lucide-react';
 import type { Staff } from '@/lib/types';
 import { tr } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { SAMPLE_STAFF } from '@/lib/mockData';
+ 
 
 interface PinEntryScreenProps {
   onSuccess: (staff: Staff) => void;

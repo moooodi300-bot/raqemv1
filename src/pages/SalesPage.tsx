@@ -18,14 +18,6 @@ import { mergeCustomerLists, saveLocalCustomer } from '@/lib/customerStore';
 import { validateAndCalculateDiscount, incrementDiscountUsage, DiscountCode } from '@/lib/discountStore';
 import { getTenantProducts } from '@/lib/productStore';
 import { getTenantPackages, getTenantCustomerSubscriptions, saveTenantCustomerSubscription, consumeSubscriptionWash } from '@/lib/subscriptionStore';
-import {
-  SAMPLE_SERVICES,
-  SAMPLE_STAFF,
-  SAMPLE_BRANCHES,
-  SAMPLE_SALES,
-  SAMPLE_SUBSCRIPTIONS,
-  SAMPLE_CUSTOMER_SUBSCRIPTIONS,
-} from '@/lib/mockData';
 
 interface CartItem { service: Service; qty: number; }
 
@@ -48,6 +40,7 @@ export function SalesPage() {
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState<string>('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [cashAmount, setCashAmount] = useState(0);
   const [discountCode, setDiscountCode] = useState('');
@@ -56,7 +49,6 @@ export function SalesPage() {
   const [appliedDiscount, setAppliedDiscount] = useState<DiscountCode | null>(null);
   const [cardAmount, setCardAmount] = useState(0);
   const [customerSearch, setCustomerSearch] = useState('');
-  const [showCheckout, setShowCheckout] = useState(false);
   const [showAddCust, setShowAddCust] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showSubForm, setShowSubForm] = useState(false);
@@ -103,8 +95,9 @@ export function SalesPage() {
       const loadedSa = storedSales ? JSON.parse(storedSales) : [];
       
       const loadedSv = svItems;
-      const loadedSt = SAMPLE_STAFF;
-      const loadedBr = SAMPLE_BRANCHES;
+      const storedStaff = localStorage.getItem(`tenant_staff_${currentTenantId}`);
+      const loadedSt = storedStaff ? JSON.parse(storedStaff) : [];
+      const loadedBr = [{ id: `br-${currentTenantId}`, name: 'الفرع الرئيسي', location: '', phone: '', manager: '', active: true }];
       
       const finalSubs = getTenantPackages(currentTenantId);
       const loadedCS = getTenantCustomerSubscriptions(currentTenantId);
@@ -131,7 +124,7 @@ export function SalesPage() {
         };
       }
 
-      const allServices = loadedSv.length > 0 ? loadedSv : SAMPLE_SERVICES;
+      const allServices = loadedSv.length > 0 ? loadedSv : [];
 
       setServices(allServices as any);
       setCustomers(loadedCu);
@@ -165,6 +158,20 @@ export function SalesPage() {
     ).slice(0, 50);
   }, [customerSearch, customers]);
 
+  const selectedCustomer = allCustomersRef.current.find((c) => c.id === customerId) ?? null;
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      if (selectedCustomer.vehicles && selectedCustomer.vehicles.length === 1) {
+        setSelectedVehicleId(selectedCustomer.vehicles[0].id);
+      } else if (!selectedCustomer.vehicles || selectedCustomer.vehicles.length === 0) {
+        setSelectedVehicleId(null);
+      }
+    } else {
+      setSelectedVehicleId(null);
+    }
+  }, [selectedCustomer]);
+
   if (loading) return <Spinner label={tr('loading', lang)} />;
 
   const isWashItem = (cat: string, isProd?: boolean) => cat !== 'اشتراكات' && cat !== 'products' && !isProd;
@@ -185,8 +192,6 @@ export function SalesPage() {
   };
 
 
-
-  const selectedCustomer = allCustomersRef.current.find((c) => c.id === customerId) ?? null;
   const customerSub = custSubs.find((cs) => cs.customer_id === customerId && cs.status === 'active');
   const subDef = customerSub ? subs.find((s) => s.id === customerSub.subscription_id) : null;
   const hasActiveSub = !!customerSub && (customerSub.washes_remaining ?? 0) > 0 && (!customerSub.end_date || new Date(customerSub.end_date) >= new Date()) && cartWashes > 0;
@@ -388,6 +393,18 @@ export function SalesPage() {
 
   const addQuickCustomer = async () => {
     if (!newCust.name) return;
+    if (!newCust.phone) {
+      alert(isRTL ? "رقم الجوال مطلوب" : "Phone number is required");
+      return;
+    }
+    if (!newCust.vehicle_type) {
+      alert(isRTL ? "نوع السيارة مطلوب" : "Vehicle type is required");
+      return;
+    }
+    if (!newCust.vehicle_color) {
+      alert(isRTL ? "لون السيارة مطلوب" : "Vehicle color is required");
+      return;
+    }
     const cust: Customer = {
       id: 'c-' + Date.now(),
       name: newCust.name,
@@ -447,6 +464,18 @@ setShowAddCust(false);
     if (subCustMode === 'quick_add' || (!activeCust && subQuickCust.name.trim())) {
       if (!subQuickCust.name.trim()) {
         alert('الرجاء كتابة اسم العميل على الأقل لربط الاشتراك بحسابه ⚠️');
+        return;
+      }
+      if (!subQuickCust.phone.trim()) {
+        alert(isRTL ? "رقم الجوال مطلوب" : "Phone number is required");
+        return;
+      }
+      if (!subQuickCust.car_type.trim() && !subForm.car_type.trim()) {
+        alert(isRTL ? "نوع السيارة مطلوب" : "Vehicle type is required");
+        return;
+      }
+      if (!subQuickCust.car_color.trim() && !subForm.car_color.trim()) {
+        alert(isRTL ? "لون السيارة مطلوب" : "Vehicle color is required");
         return;
       }
       const newC: Customer = {
@@ -648,22 +677,7 @@ setShowAddCust(false);
       alert('لا يوجد رصيد غسلات متبقٍ في اشتراك هذا العميل ⚠️');
       return;
     }
-    const washService = services.find((s) => s.category !== 'products' && !(s as any).is_product) || services[0] || {
-      id: 'wash_sub_quick',
-      name: 'غسيل شامل (خصم من الاشتراك)',
-      price: 0,
-      category: 'غسيل',
-      duration_min: 20,
-      is_product: false
-    };
-    setCart((prev) => {
-      const existing = prev.find((i) => i.service.id === washService.id);
-      if (existing) {
-        return prev.map((i) => (i.service.id === washService.id ? { ...i, qty: 1 } : i));
-      }
-      return [{ service: washService, qty: 1 }, ...prev];
-    });
-    setShowCheckout(true);
+    handleDirectSubWashDeduction(customerSub as any);
   };
 
   const handleDirectSubWashDeduction = async (csub: CustomerSubscription) => {
@@ -1076,7 +1090,7 @@ setShowAddCust(false);
     setCashAmount(0);
     setCardAmount(0);
     setProcessing(false);
-    setShowCheckout(false);
+    /* removed */
   };
 
   const getCleanPhone = (phone: string) => {
@@ -1546,7 +1560,7 @@ setShowAddCust(false);
                   onClick={() => setCatalogTab('all')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${catalogTab === 'all' ? 'bg-surface-900 text-white shadow-xs' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'}`}
                 >
-                  الكل ({services.filter(s => s.category !== 'اشتراكات' && s.category !== 'subscriptions').length + subs.filter(s => s.active !== false).length})
+                  الكل ({services.filter(s => s.category !== 'اشتراكات' && s.category !== 'subscriptions').length})
                 </button>
                 <button
                   type="button"
@@ -1554,13 +1568,6 @@ setShowAddCust(false);
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${catalogTab === 'washes' ? 'bg-primary-700 text-white shadow-xs' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'}`}
                 >
                   💧 خدمات الغسيل ({services.filter(s => s.category !== 'products' && !(s as any).is_product && s.category !== 'اشتراكات' && s.category !== 'subscriptions').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCatalogTab('subscriptions')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${catalogTab === 'subscriptions' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'}`}
-                >
-                  💎 باقات الاشتراكات ({subs.filter(s => s.active !== false).length})
                 </button>
                 <button
                   type="button"
@@ -1596,53 +1603,6 @@ setShowAddCust(false);
                       </button>
                     ))}
 
-                {/* Render Subscription Package Cards */}
-                {(catalogTab === 'all' || catalogTab === 'subscriptions') &&
-                  subs
-                    .filter((pkg) => pkg.active !== false)
-                    .map((pkg) => {
-                      const price = pkg.monthly_price || pkg.price_monthly || pkg.price || 0;
-                      const washes = pkg.washes_included ?? pkg.washes ?? 0;
-                      const days = pkg.duration_days || pkg.durationDays || 30;
-                      return (
-                        <button
-                          key={'pkg_' + pkg.id}
-                          disabled={!can('sales.create')}
-                          onClick={() => {
-                            const pkgService: Service = {
-                              id: 'sub_' + pkg.id,
-                              name: `اشتراك: ${pkg.name}`,
-                              price: Number(price),
-                              category: 'اشتراكات',
-                              duration_min: 0,
-                              is_product: false,
-                              original_sub: pkg,
-                            } as any;
-                            addToCart(pkgService);
-                          }}
-                          className={`p-3.5 rounded-xl border-2 border-emerald-300/80 bg-gradient-to-br from-emerald-50/60 to-primary-50/40 transition-all text-right group relative flex flex-col justify-between h-full min-h-[130px] shadow-2xs ${can('sales.create') ? 'hover:border-emerald-500 hover:shadow-md cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between gap-1 mb-2">
-                              <span className="text-[11px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                💎 باقة اشتراك
-                              </span>
-                              <span className="text-[10px] font-bold text-primary-800 bg-primary-100 px-1.5 py-0.5 rounded">
-                                {washes} غسلة
-                              </span>
-                            </div>
-                            <p className="font-extrabold text-surface-900 text-sm leading-snug break-words">{pkg.name}</p>
-                            <p className="text-[11px] text-surface-500 font-medium mt-1">صلاحية {days} يوم</p>
-                          </div>
-                          <div className="mt-3 flex items-center justify-between border-t border-emerald-100/80 pt-2">
-                            <p className="text-base font-black text-emerald-700">{formatSAR(price, lang)}</p>
-                            <span className="text-[11px] font-bold text-emerald-700 bg-white border border-emerald-300 px-2 py-0.5 rounded-lg group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600 transition-colors">
-                              + إضافة لسلة العميل
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
               </div>
             </CardBody>
           </Card>
@@ -1891,13 +1851,25 @@ setShowAddCust(false);
                 )}
               </div>
 
+              {/* Discount Code */}
+              {adjustedCartTotal > 0 && (
+                <div className="mb-3 pt-3 border-t border-surface-100">
+                  <Label className="text-xs mb-1 text-surface-600">كود الخصم (اختياري)</Label>
+                  <div className="flex gap-2">
+                    <Input value={discountCode} onChange={e => setDiscountCode(e.target.value)} placeholder="أدخل الكود" className="text-sm h-9 flex-1" />
+                    <Button variant="secondary" onClick={applyDiscount} className="h-9 px-3 text-sm">تطبيق</Button>
+                  </div>
+                  {discountError && <p className="text-xs text-rose-500 mt-1">{discountError}</p>}
+                  {appliedDiscount && <p className="text-xs text-emerald-600 mt-1">تم تطبيق الخصم: {formatSAR(discountAmount, lang)}</p>}
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-4 pt-3 border-t border-surface-100">
                 <span className="text-sm text-surface-500">{tr('total', lang)}</span>
-                <span className="text-xl font-bold text-surface-800">{formatSAR(adjustedCartTotal, lang)}</span>
+                <span className="text-xl font-bold text-surface-800">{formatSAR(adjustedCartTotal - discountAmount, lang)}</span>
               </div>
-
-              <Button onClick={() => setShowCheckout(true)} disabled={cart.length === 0} className="w-full">
-                <ShoppingCart className="w-4 h-4" /> {tr('checkout', lang)}
+              <Button onClick={checkout} disabled={cart.length === 0 || processing} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg py-6 shadow-sm">
+                <ShoppingCart className="w-5 h-5 ml-2" /> {processing ? tr('processing', lang) : 'دفع وإصدار الفاتورة ⚡'}
               </Button>
             </CardBody>
           </Card>
@@ -2098,9 +2070,10 @@ setShowAddCust(false);
             />
           </div>
           <div>
-            <Label>{tr('phone', lang)}</Label>
+            <Label>{tr('phone', lang)} *</Label>
             <Input
               type="tel"
+              required
               placeholder="رقم الجوال (مثلاً: 0501234567)"
               value={newCust.phone}
               onChange={(e) => setNewCust({ ...newCust, phone: e.target.value })}
@@ -2118,8 +2091,9 @@ setShowAddCust(false);
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <Label>نوع السيارة</Label>
+              <Label>نوع السيارة *</Label>
               <Input
+                required
                 value={newCust.vehicle_type}
                 onChange={(e) => setNewCust({ ...newCust, vehicle_type: e.target.value })}
                 placeholder="سيدان / SUV"
@@ -2136,6 +2110,7 @@ setShowAddCust(false);
             <div>
               <Label>لون السيارة *</Label>
               <Input
+                required
                 value={newCust.vehicle_color}
                 onChange={(e) => setNewCust({ ...newCust, vehicle_color: e.target.value })}
                 placeholder="أبيض / أسود"
@@ -2198,6 +2173,7 @@ setShowAddCust(false);
                   <div>
                     <Label className="text-xs font-bold text-surface-700">رقم الجوال *</Label>
                     <Input
+                      required
                       type="tel"
                       placeholder="رقم الجوال (مثلاً: 0501234567)"
                       value={subQuickCust.phone}
@@ -2208,8 +2184,9 @@ setShowAddCust(false);
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-xs text-surface-600">نوع/ماركة السيارة</Label>
+                    <Label className="text-xs text-surface-600">نوع/ماركة السيارة *</Label>
                     <Input
+                      required
                       placeholder="تويوتا كامري / سيدان"
                       value={subQuickCust.car_type}
                       onChange={(e) => setSubQuickCust({ ...subQuickCust, car_type: e.target.value })}
@@ -2217,8 +2194,9 @@ setShowAddCust(false);
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-surface-600">لون السيارة</Label>
+                    <Label className="text-xs text-surface-600">لون السيارة *</Label>
                     <Input
+                      required
                       placeholder="أبيض لؤلؤي / أسود"
                       value={subQuickCust.car_color}
                       onChange={(e) => setSubQuickCust({ ...subQuickCust, car_color: e.target.value })}
@@ -2413,53 +2391,6 @@ setShowAddCust(false);
         )}
       </Modal>
 
-      {/* Checkout confirmation */}
-      <Modal open={showCheckout} onClose={() => { setShowCheckout(false); setDiscountCode(''); setDiscountAmount(0); setDiscountError(''); setAppliedDiscount(null); }} title={tr('confirmSale', lang)}>
-                <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-surface-50">
-            <div className="flex justify-between mb-2"><span className="text-surface-500">{tr('customer', lang)}</span><span className="font-medium">{selectedCustomer?.name ?? tr('noCustomerSelected', lang)}</span></div>
-            <div className="flex justify-between mb-2"><span className="text-surface-500">{tr('washCount', lang)}</span><span className="font-medium">{cartWashes}</span></div>
-            <div className="flex justify-between mb-2"><span className="text-surface-500">{tr('paymentMethod', lang)}</span><span className="font-medium">{tr(paymentMethod, lang)}</span></div>
-            {hasActiveSub && customerSub && (
-              <div className="my-3 p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 space-y-2">
-                <div className="flex items-center justify-between text-xs font-black text-emerald-950">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>تغطيها باقة الاشتراك ({customerSub.package_name_snapshot || 'اشتراك نشط'})</span>
-                  </span>
-                  <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[11px]">0.00 SAR</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-emerald-950 bg-white/90 p-2.5 rounded-xl border border-emerald-200">
-                  <div>الرصيد الحالي: <strong className="text-surface-900">{customerSub.washes_remaining} غسلة</strong></div>
-                  <div>المتبقي بعد الخصم: <strong className="text-emerald-700">{Math.max(0, customerSub.washes_remaining - cartWashes)} غسلة</strong></div>
-                </div>
-              </div>
-            )}
-            {isFreeWash && <div className="flex justify-between mb-2 text-emerald-600 font-bold"><span>{tr('free', lang)}</span><span>✓</span></div>}
-            
-            {adjustedCartTotal > 0 && (
-              <div className="mt-3 pt-3 border-t border-surface-200">
-                <Label className="text-xs mb-1">كود الخصم (اختياري)</Label>
-                <div className="flex gap-2">
-                  <Input value={discountCode} onChange={e => setDiscountCode(e.target.value)} placeholder="أدخل الكود" className="text-sm h-9 flex-1" />
-                  <Button variant="secondary" onClick={applyDiscount} className="h-9 px-3 text-sm">تطبيق</Button>
-                </div>
-                {discountError && <p className="text-xs text-rose-500 mt-1">{discountError}</p>}
-                {appliedDiscount && <p className="text-xs text-emerald-600 mt-1">تم تطبيق الخصم: {formatSAR(discountAmount, lang)}</p>}
-              </div>
-            )}
-
-            <div className="flex justify-between pt-3 mt-3 border-t border-surface-200">
-               <div className="space-y-1">
-                 <span className="font-bold">{tr('total', lang)}</span>
-                 {appliedDiscount && <div className="text-xs text-surface-500 line-through">{formatSAR(cartTotal, lang)}</div>}
-               </div>
-               <span className="font-bold text-lg text-emerald-700">{formatSAR(adjustedCartTotal - discountAmount, lang)}</span>
-            </div>
-          </div>
-          <Button onClick={checkout} disabled={processing} className="w-full">{processing ? tr('processing', lang) : tr('confirmAndInvoice', lang)}</Button>
-        </div>
-      </Modal>
 
       {/* Invoice modal */}
       <Modal open={showInvoice} onClose={() => setShowInvoice(false)} title="تم استخراج الفاتورة بنجاح 🧾">

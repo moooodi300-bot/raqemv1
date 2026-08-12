@@ -7,14 +7,13 @@ import { PageHeader, Card, CardBody, Button, Input, Label } from '@/components/u
 import { getTenantProducts, saveAllLocalProducts, ProductItem } from '@/lib/productStore';
 import { getTenantPackages, saveTenantPackage, deleteTenantPackage } from '@/lib/subscriptionStore';
 
-import { RolesSettings } from '@/components/RolesSettings';
 import { StaffSettings } from '@/components/StaffSettings';
 import { DiscountsSettings } from '@/components/DiscountsSettings';
 
 export function SettingsPage() {
   const { signOut, user, organization, settings, refreshSettings, setSettings } = useAuth();
   const currentTenantId = organization?.id || 'org_client_01';
-  const [activeTab, setActiveTab] = useState<'facility' | 'services' | 'packages' | 'costs' | 'roles' | 'staff' | 'fleet' | 'loyalty' | 'whatsapp' | 'backup' | 'discounts'>('facility');
+  const [activeTab, setActiveTab] = useState<'facility' | 'services' | 'packages' | 'costs' | 'staff' | 'fleet' | 'loyalty' | 'whatsapp' | 'backup' | 'discounts'>('facility');
   
   const [facility, setFacility] = useState({ name: settings?.company_name || organization?.name || 'مغسلتي', phone: settings?.phone || '', vat: settings?.vat_number || '', cr: (settings as any)?.cr_number || '' });
   
@@ -212,9 +211,6 @@ export function SettingsPage() {
           </button>
           <button onClick={() => setActiveTab('staff')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'staff' ? 'bg-primary-600 text-white shadow-md' : 'text-surface-600 hover:bg-surface-100'}`}>
             <Users className="w-5 h-5" /> المستخدمين والصلاحيات
-          </button>
-          <button onClick={() => setActiveTab('roles')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'roles' ? 'bg-primary-600 text-white shadow-md' : 'text-surface-600 hover:bg-surface-100'}`}>
-            <ShieldCheck className="w-5 h-5" /> الأدوار الافتراضية
           </button>
           <button onClick={() => setActiveTab('whatsapp')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'whatsapp' ? 'bg-primary-600 text-white shadow-md' : 'text-surface-600 hover:bg-surface-100'}`}>
             <MessageCircle className="w-5 h-5" /> إشعارات واتساب
@@ -590,7 +586,6 @@ export function SettingsPage() {
             </div>
           )}
 
-          {activeTab === 'roles' && <RolesSettings />}
           {activeTab === 'staff' && <StaffSettings />}
 
           {activeTab === 'whatsapp' && (

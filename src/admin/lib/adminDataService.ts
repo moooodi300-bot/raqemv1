@@ -480,10 +480,7 @@ class AdminDataService {
         if (Array.isArray(users)) return users;
       }
     } catch {}
-    return [
-      { id: 'riyadh-mock-id', name: 'مغسلة الرياض', email: 'riyadh@test.com', tenant_id: '11111111-1111-1111-1111-111111111111' },
-      { id: 'jeddah-mock-id', name: 'مغسلة جدة', email: 'jeddah@test.com', tenant_id: '22222222-2222-2222-2222-222222222222' },
-    ];
+    return [];
   }
 
   /**
@@ -592,6 +589,22 @@ class AdminDataService {
   getPlatformActivity(): AdminActivityItem[] {
     const activity: AdminActivityItem[] = [];
     const businesses = this.getBusinessesSync();
+    
+    // Add admin activity logs
+    try {
+      const adminAct = JSON.parse(localStorage.getItem('saas_admin_activity') || '[]');
+      adminAct.forEach((a: any, i: number) => {
+        activity.push({
+          id: `act-admin-${i}-${a.date}`,
+          type: 'customer', // generic icon
+          tenant_id: 'admin',
+          tenant_name: 'SaaS Platform',
+          title: a.action,
+          details: a.target + (a.details ? ` - ${a.details}` : ''),
+          date: a.date
+        });
+      });
+    } catch {}
 
     businesses.forEach((b) => {
       // Add sales activity

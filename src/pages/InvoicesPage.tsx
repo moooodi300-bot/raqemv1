@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 
 export function InvoicesPage() {
   const { organization, settings, lang } = useAuth();
+  const { can } = usePermissions();
   const currentTenantId = organization?.id || 'org_client_01';
   
   const [sales, setSales] = useState<Sale[]>([]);

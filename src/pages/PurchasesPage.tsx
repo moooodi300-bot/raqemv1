@@ -17,6 +17,7 @@ export function PurchasesPage() {
   const currentTenantId = organization?.id || 'org_client_01';
   
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
@@ -114,6 +115,12 @@ export function PurchasesPage() {
           ) : undefined
         }
       />
+
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium">
+          {errorMsg}
+        </div>
+      )}
 
       <Card className="border-0 shadow-sm">
         <CardBody className="p-0">

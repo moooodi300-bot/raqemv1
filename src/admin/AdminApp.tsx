@@ -6,6 +6,7 @@ import { AdminSubscriptions } from './pages/AdminSubscriptions';
 import { AdminExports } from './pages/AdminExports';
 import { AdminSupport } from './pages/AdminSupport';
 import { AdminPlans } from './pages/AdminPlans';
+import { AdminSettings } from './pages/AdminSettings';
 import { AdminBusinessDetails } from './pages/AdminBusinessDetails';
 import { Lang, tr } from './lib/i18n';
 
@@ -35,9 +36,18 @@ export function AdminApp() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') { // Simple demo password
+    const currentStored = localStorage.getItem('saas_admin_pass') || 'admin123';
+    if (password === currentStored) {
       localStorage.setItem('saas_admin_auth', 'true');
       setIsAuthenticated(true);
+      
+      const activity = JSON.parse(localStorage.getItem('saas_admin_activity') || '[]');
+      activity.push({
+        action: 'Admin Login',
+        target: 'SaaS Admin Portal',
+        date: new Date().toISOString()
+      });
+      localStorage.setItem('saas_admin_activity', JSON.stringify(activity));
     } else {
       alert(lang === 'ar' ? 'كلمة المرور غير صحيحة' : 'Invalid password');
     }
@@ -46,6 +56,14 @@ export function AdminApp() {
   const logout = () => {
     localStorage.removeItem('saas_admin_auth');
     setIsAuthenticated(false);
+    
+    const activity = JSON.parse(localStorage.getItem('saas_admin_activity') || '[]');
+    activity.push({
+      action: 'Admin Logout',
+      target: 'SaaS Admin Portal',
+      date: new Date().toISOString()
+    });
+    localStorage.setItem('saas_admin_activity', JSON.stringify(activity));
   };
 
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -102,6 +120,7 @@ export function AdminApp() {
     { id: 'exports', label: tr('dataExport', lang), icon: DownloadCloud },
     { id: 'support', label: tr('support', lang), icon: LifeBuoy },
     { id: 'plans', label: tr('plans', lang), icon: FileText },
+    { id: 'settings', label: lang === 'ar' ? 'أمان الإدارة' : 'Admin Security', icon: Settings },
   ];
 
   return (
@@ -175,6 +194,7 @@ export function AdminApp() {
               {activeTab === 'exports' && <AdminExports lang={lang} />}
               {activeTab === 'support' && <AdminSupport lang={lang} />}
               {activeTab === 'plans' && <AdminPlans lang={lang} />}
+              {activeTab === 'settings' && <AdminSettings lang={lang} />}
             </>
           )}
         </div>

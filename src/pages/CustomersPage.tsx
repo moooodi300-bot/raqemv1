@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Plus, Search, Gift, Phone, Car, Download, Calendar, CreditCard, MessageCircle,
   Clock, ChevronLeft, ChevronRight, FileText, ClipboardList, CheckCircle2,
@@ -16,7 +16,6 @@ import { useAuth, usePermissions } from '@/lib/auth';
 import { tr } from '@/lib/i18n';
 import { mergeCustomerLists, saveLocalCustomer } from '@/lib/customerStore';
 import { getTenantCustomerSubscriptions, consumeSubscriptionWash } from '@/lib/subscriptionStore';
-import { SAMPLE_SUBSCRIPTIONS, SAMPLE_CUSTOMER_SUBSCRIPTIONS, SAMPLE_SALES } from '@/lib/mockData';
 
 export function CustomersPage() {
   const { lang, settings, organization } = useAuth();
@@ -59,7 +58,7 @@ export function CustomersPage() {
     const loadedCS = (cs.data as CustomerSubscription[]) ?? [];
 
     setCustomers(loadedC);
-    setSubs(loadedS.length > 0 ? loadedS : SAMPLE_SUBSCRIPTIONS);
+    setSubs(loadedS);
     
     // Merge local/mock tenant customer subscriptions
     const tenantCustSubs = getTenantCustomerSubscriptions(currentTenantId);
@@ -68,7 +67,7 @@ export function CustomersPage() {
     tenantCustSubs.forEach(c => subMap.set(c.id, c));
     const mergedList = Array.from(subMap.values());
 
-    setCustSubs(mergedList.length > 0 ? mergedList : SAMPLE_CUSTOMER_SUBSCRIPTIONS);
+    setCustSubs(mergedList);
     setLoading(false);
   };
 
@@ -88,7 +87,7 @@ export function CustomersPage() {
       const storedSales = localStorage.getItem(`tenant_sales_${currentTenantId}`);
       const loadedSales: Sale[] = storedSales ? JSON.parse(storedSales) : [];
       
-      const allSales = [...loadedSales, ...SAMPLE_SALES];
+      const allSales = [...loadedSales];
       const salesMap = new Map<string, Sale>();
       allSales.forEach((s) => salesMap.set(s.id, s));
       const uniqueSales = Array.from(salesMap.values());
@@ -139,15 +138,72 @@ export function CustomersPage() {
     }
   }, [showProfile, customers, custSubs, currentTenantId]);
 
+  const getCustomerSub = useCallback((cid: string) => custSubs.find((cs) => cs.customer_id === cid && cs.status === 'active'), [custSubs]);
+
+  const getCustomerLastVisit = useCallback((cid: string) => {
+    const sales = customerSales.filter(s => s.customer_id === cid || s.customer?.id === cid);
+    if (sales.length === 0) return null;
+    const sorted = [...sales].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    return sorted[0]?.created_at || null;
+  }, [customerSales]);
+
   const filtered = useMemo(() => {
     let res = customers;
     if (search) {
       const s = search.toLowerCase();
       res = res.filter(c => c.name.toLowerCase().includes(s) || (c.phone ?? '').includes(search) || (c.plate_number ?? '').toLowerCase().includes(s));
     }
-    // Limit to 100 to avoid massive re-renders
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'vip') res = res.filter(c => (c.total_visits || 0) >= 10);
+      else if (statusFilter === 'active') res = res.filter(c => (c.total_visits || 0) > 0);
+      else if (statusFilter === 'inactive') res = res.filter(c => (c.total_visits || 0) === 0);
+    }
+    if (visitFilter !== 'all') {
+      const now = Date.now();
+      res = res.filter(c => {
+        const lastVisit = getCustomerLastVisit(c.id);
+        if (!lastVisit) return visitFilter === 'never';
+        const diffDays = (now - new Date(lastVisit).getTime()) / (1000 * 3600 * 24);
+        if (visitFilter === 'recent') return diffDays <= 7;
+        if (visitFilter === 'no_visit_20') return diffDays > 20;
+        if (visitFilter === 'no_visit_30') return diffDays > 30;
+        if (visitFilter === 'no_visit_60') return diffDays > 60;
+        return true;
+      });
+    }
+    if (subFilter !== 'all') {
+      res = res.filter(c => {
+        const sub = getCustomerSub(c.id);
+        if (subFilter === 'active') return !!sub;
+        if (subFilter === 'none') return !sub;
+        return true;
+      });
+    }
     return res.slice(0, 100);
-  }, [customers, search]);
+  }, [customers, search, statusFilter, visitFilter, subFilter, getCustomerLastVisit, getCustomerSub]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(c => c.id));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleBulkArchive = () => {
+    if (selectedIds.length === 0) return;
+    setShowArchiveConfirm(true);
+  };
+
+  const confirmArchive = async () => {
+    setCustomers(prev => prev.filter(c => !selectedIds.includes(c.id)));
+    setSelectedIds([]);
+    setShowArchiveConfirm(false);
+  };
 
   if (loading) return <Spinner label={tr('loading', lang)} />;
 
@@ -227,7 +283,6 @@ export function CustomersPage() {
     }
   };
 
-  const getCustomerSub = (cid: string) => custSubs.find((cs) => cs.customer_id === cid && cs.status === 'active');
   const getSubName = (sid: string) => subs.find((s) => s.id === sid)?.name ?? '';
 
   const exportCsv = () => {

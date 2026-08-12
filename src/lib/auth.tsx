@@ -150,16 +150,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const initDemos = () => {
      let users = JSON.parse(localStorage.getItem('saas_users') || '[]');
-     if (users.length === 0) {
-        users = [
-          { id: 'riyadh-mock-id', name: 'مغسلة الرياض', email: 'riyadh@test.com', password: '123456', tenant_id: '11111111-1111-1111-1111-111111111111' },
-          { id: 'jeddah-mock-id', name: 'مغسلة جدة', email: 'jeddah@test.com', password: '123456', tenant_id: '22222222-2222-2222-2222-222222222222' }
-        ];
+     
+     // One-time cleanup for old demo tenants
+     const oldTenantIds = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'];
+     let cleaned = false;
+     
+     if (users.find((u: any) => u.email === 'riyadh@test.com' || u.email === 'jeddah@test.com')) {
+       users = users.filter((u: any) => u.email !== 'riyadh@test.com' && u.email !== 'jeddah@test.com');
+       localStorage.setItem('saas_users', JSON.stringify(users));
+       cleaned = true;
+       
+       let orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
+       orgs = orgs.filter((o: any) => !oldTenantIds.includes(o.id));
+       localStorage.setItem('saas_orgs', JSON.stringify(orgs));
+       
+       // Clean local storage keys associated with old tenants
+       const keysToRemove = [];
+       for (let i = 0; i < localStorage.length; i++) {
+         const key = localStorage.key(i);
+         if (key && oldTenantIds.some(tid => key.includes(tid))) {
+           keysToRemove.push(key);
+         }
+       }
+       keysToRemove.forEach(k => localStorage.removeItem(k));
+     }
+
+     if (!users.find((u: any) => u.email === 'almanar@your-domain.com')) {
+        const tenantId = 'TENANT-ALMANAR-0001';
+        users.push({ 
+          id: 'almanar-owner-id', 
+          name: 'مدير مغسلة المنار', 
+          email: 'almanar@your-domain.com', 
+          password: 'Almanar@2026', 
+          tenant_id: tenantId,
+          role: 'business_owner'
+        });
         localStorage.setItem('saas_users', JSON.stringify(users));
-        localStorage.setItem('saas_orgs', JSON.stringify([
-          { id: '11111111-1111-1111-1111-111111111111', name: 'مغسلة الرياض', owner_id: 'riyadh-mock-id', subscription_status: 'active' },
-          { id: '22222222-2222-2222-2222-222222222222', name: 'مغسلة جدة', owner_id: 'jeddah-mock-id', subscription_status: 'active' }
-        ]));
+        
+        const orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
+        if (!orgs.find((o: any) => o.id === tenantId)) {
+          orgs.push({ 
+            id: tenantId, 
+            name: 'مغسلة المنار', 
+            owner_id: 'almanar-owner-id', 
+            subscription_status: 'active' 
+          });
+          localStorage.setItem('saas_orgs', JSON.stringify(orgs));
+        }
      }
   };
 

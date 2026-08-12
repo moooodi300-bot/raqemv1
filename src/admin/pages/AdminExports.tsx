@@ -109,9 +109,19 @@ export function AdminExports({ lang }: { lang: Lang }) {
 
   const handleExportCSV = () => {
     if (dataToExport.length === 0) return alert(tr('noRecordsToExport', lang));
+    
+    // Log the export action
+    const activity = JSON.parse(localStorage.getItem('saas_admin_activity') || '[]');
+    activity.push({
+      action: 'Export Data (CSV)',
+      target: exportType,
+      details: `Business: ${selectedBusiness}, DateRange: ${dateRange}`,
+      date: new Date().toISOString()
+    });
+    localStorage.setItem('saas_admin_activity', JSON.stringify(activity));
+
     const translatedData = getTranslatedHeaders(dataToExport, exportType);
     const ws = utils.json_to_sheet(translatedData);
-
     const csvContent = '\uFEFF' + utils.sheet_to_csv(ws);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -122,6 +132,17 @@ export function AdminExports({ lang }: { lang: Lang }) {
 
   const handleExportExcel = () => {
     if (dataToExport.length === 0) return alert(tr('noRecordsToExport', lang));
+    
+    // Log the export action
+    const activity = JSON.parse(localStorage.getItem('saas_admin_activity') || '[]');
+    activity.push({
+      action: 'Export Data (Excel)',
+      target: exportType,
+      details: `Business: ${selectedBusiness}, DateRange: ${dateRange}`,
+      date: new Date().toISOString()
+    });
+    localStorage.setItem('saas_admin_activity', JSON.stringify(activity));
+
     const translatedData = getTranslatedHeaders(dataToExport, exportType);
     const ws = utils.json_to_sheet(translatedData);
     const wb = utils.book_new();
