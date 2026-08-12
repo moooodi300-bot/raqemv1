@@ -14,7 +14,7 @@ export function AdminPlans({ lang }: { lang: Lang }) {
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="border border-slate-200 rounded-2xl p-6 relative">
-            <div className={`absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg`}>{tr('active', lang)}</div>
+            <div className="absolute top-4 end-4 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">{tr('active', lang)}</div>
             <h4 className="text-lg font-bold text-slate-800">Basic</h4>
             <div className="mt-4 flex items-baseline gap-1" dir="ltr">
               <span className="text-3xl font-bold text-slate-900">149</span>
@@ -29,7 +29,7 @@ export function AdminPlans({ lang }: { lang: Lang }) {
           </div>
           
           <div className="border-2 border-blue-500 rounded-2xl p-6 relative shadow-md">
-            <div className={`absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg`}>{tr('active', lang)}</div>
+            <div className="absolute top-4 end-4 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">{tr('active', lang)}</div>
             <h4 className="text-lg font-bold text-blue-700">Pro</h4>
             <div className="mt-4 flex items-baseline gap-1" dir="ltr">
               <span className="text-3xl font-bold text-slate-900">299</span>

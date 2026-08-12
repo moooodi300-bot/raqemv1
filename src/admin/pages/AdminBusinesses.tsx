@@ -20,13 +20,13 @@ export function AdminBusinesses({ onSelectTenant, lang }: { onSelectTenant: (id:
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-6 border-b border-slate-200 flex items-center justify-between gap-4 bg-slate-50">
         <div className="relative flex-1 max-w-md">
-          <Search className={`w-5 h-5 absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400`} />
+          <Search className="w-5 h-5 absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text" 
             placeholder={tr('searchBusinesses', lang)} 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full ${lang === 'ar' ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+            className="w-full ps-10 pe-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 flex items-center gap-2">

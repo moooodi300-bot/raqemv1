@@ -50,6 +50,11 @@ export function AdminApp() {
 
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
 
+  useEffect(() => {
+    document.documentElement.dir = dir;
+    document.documentElement.lang = lang;
+  }, [dir, lang]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100" dir={dir}>
@@ -71,7 +76,7 @@ export function AdminApp() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder={tr('adminPassword', lang)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 mb-6 focus:ring-2 focus:ring-blue-500 outline-none text-left"
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 mb-6 focus:ring-2 focus:ring-blue-500 outline-none text-start"
             dir="ltr"
           />
           <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors">
@@ -102,7 +107,7 @@ export function AdminApp() {
   return (
     <div className="min-h-screen bg-slate-50 flex" dir={dir}>
       {/* Sidebar */}
-      <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 ${lang === 'ar' ? 'right-0' : 'left-0'} z-10`}>
+      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 start-0 z-10">
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
@@ -146,7 +151,7 @@ export function AdminApp() {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 min-h-screen ${lang === 'ar' ? 'mr-64' : 'ml-64'}`}>
+      <main className="flex-1 min-h-screen ms-64">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800">
              {selectedTenant ? tr('subscriptionDetails', lang) : navItems.find(i => i.id === activeTab)?.label}
