@@ -1163,7 +1163,7 @@ export function CustomersPage() {
                         </Badge>
                       </td>
                       <td className="p-3 text-center">
-                        <Button size="sm" variant="outline" onClick={() => setShowEdit(c.id)} className="h-8">تعديل</Button>
+                        {can('customers.edit') && <Button size="sm" variant="outline" onClick={() => setShowEdit(c.id)} className="h-8">تعديل</Button>}
                       </td>
                     </tr>
                   );

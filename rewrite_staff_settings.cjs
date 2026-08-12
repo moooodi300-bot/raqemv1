@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+const fs = require('fs');
+
+const code = `import { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Label, Badge } from '@/components/ui';
 import { Edit, Save, X, Trash2, KeyRound, Shield, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import type { Staff } from '@/lib/types';
-import { ALL_PERMISSIONS, canAccess, hasPermission } from '@/lib/rbac';
+import { ALL_PERMISSIONS, canAccess } from '@/lib/rbac';
 import { tr } from '@/lib/i18n';
 
 export function StaffSettings() {
@@ -11,17 +13,15 @@ export function StaffSettings() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Staff & { confirm_pin?: string }>>({});
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [pinChangeConfirm, setPinChangeConfirm] = useState<any>(null);
   const tenantId = organization?.id || 'org_client_01';
 
   // "Settings.users" or "Settings.manage_pin"
   const canManageUsers = canAccess(role, 'settings', tenantId, activeEmployee?.permissions); // Just as a base
-  const canManagePin = hasPermission(role, 'settings.manage_pin', tenantId, activeEmployee?.permissions) || role === 'owner' || role === 'manager';
+  const canManagePin = canAccess(role, 'settings' /* fallback */, tenantId, activeEmployee?.permissions) || activeEmployee?.permissions?.includes('settings.manage_pin');
   
   useEffect(() => {
-    const saved = localStorage.getItem(`tenant_staff_${tenantId}`);
+    const saved = localStorage.getItem(\`tenant_staff_\${tenantId}\`);
     if (saved) {
       setStaff(JSON.parse(saved));
     }
@@ -29,12 +29,11 @@ export function StaffSettings() {
 
   const saveStaff = (newStaff: Staff[]) => {
     setStaff(newStaff);
-    localStorage.setItem(`tenant_staff_${tenantId}`, JSON.stringify(newStaff));
+    localStorage.setItem(\`tenant_staff_\${tenantId}\`, JSON.stringify(newStaff));
   };
 
   const handleEdit = (s: Staff) => {
     setEditingId(s.id);
-    setErrorMsg(null);
     setFormData({ ...s, pin_code: '', confirm_pin: '', permissions: s.permissions || [] });
   };
 
@@ -43,22 +42,22 @@ export function StaffSettings() {
     const isNew = editingId === 'new';
     
     if (!formData.name || !formData.role) {
-      setErrorMsg('يرجى إدخال اسم الموظف والدور.');
+      alert('يرجى إدخال اسم الموظف والدور.');
       return;
     }
 
     if (isNew && !formData.pin_code) {
-      setErrorMsg('الرجاء إدخال رمز PIN للموظف الجديد');
+      alert('الرجاء إدخال رمز PIN للموظف الجديد');
       return;
     }
 
     if (formData.pin_code || formData.confirm_pin) {
       if (formData.pin_code !== formData.confirm_pin) {
-        setErrorMsg('رمز PIN وتأكيده غير متطابقين.');
+        alert('رمز PIN وتأكيده غير متطابقين.');
         return;
       }
       if (formData.pin_code && (formData.pin_code.length < 4 || formData.pin_code.length > 6)) {
-        setErrorMsg('رمز PIN يجب أن يكون من 4 إلى 6 أرقام.');
+        alert('رمز PIN يجب أن يكون من 4 إلى 6 أرقام.');
         return;
       }
     }
@@ -66,26 +65,15 @@ export function StaffSettings() {
     const { confirm_pin, ...cleanData } = formData;
     
     // We only overwrite pin if they typed a new one.
-    const oldStaff = staff.find(s => s.id === editingId);
-    
-    if (!isNew && cleanData.pin_code && oldStaff?.pin_code && cleanData.pin_code !== oldStaff.pin_code) {
-      setPinChangeConfirm({ cleanData, oldStaff });
-      return;
-    }
-
-    applySave(isNew, cleanData);
-  };
-
-  const applySave = (isNew: boolean, cleanData: any) => {
     const finalPin = cleanData.pin_code ? cleanData.pin_code : staff.find(s => s.id === editingId)?.pin_code;
+
     const updated = isNew 
-      ? [...staff, { ...cleanData, pin_code: finalPin, id: `stf-${Date.now()}` } as Staff]
+      ? [...staff, { ...cleanData, pin_code: finalPin, id: \`stf-\${Date.now()}\` } as Staff]
       : staff.map(s => s.id === editingId ? { ...s, ...cleanData, pin_code: finalPin } as Staff : s);
     
     saveStaff(updated);
     setEditingId(null);
     setFormData({});
-    setPinChangeConfirm(null);
   };
 
   const handleDelete = (id: string) => {
@@ -116,7 +104,6 @@ export function StaffSettings() {
 
   const addNew = () => {
     setEditingId('new');
-    setErrorMsg(null);
     setFormData({ name: '', role: 'worker', active: true, pin_code: '', confirm_pin: '', permissions: [] });
   };
 
@@ -136,21 +123,6 @@ export function StaffSettings() {
         </div>
         
         <div className="space-y-4">
-          {pinChangeConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-                <div className="p-6 space-y-4">
-                  <h3 className="text-lg font-black text-surface-900">تغيير الرمز السري؟</h3>
-                  <p className="text-surface-600 text-sm">سيتم استبدال الرمز السري الحالي للموظف.</p>
-                  <div className="flex gap-2 pt-4">
-                    <Button onClick={() => setPinChangeConfirm(null)} className="flex-1" variant="secondary">إلغاء</Button>
-                    <Button onClick={() => applySave(false, pinChangeConfirm.cleanData)} className="flex-1 bg-primary-600 hover:bg-primary-700 text-white">حفظ</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {deleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
@@ -171,7 +143,7 @@ export function StaffSettings() {
           )}
 
           {editingId === 'new' && (
-            <UserEditor canManagePin={canManagePin} errorMsg={errorMsg} 
+            <UserEditor 
               formData={formData} 
               setFormData={setFormData} 
               handleSave={handleSave} 
@@ -183,7 +155,7 @@ export function StaffSettings() {
           {staff.map(s => (
             <div key={s.id} className="p-4 border rounded-xl bg-surface-50 flex items-center justify-between transition-all hover:border-primary-200">
               {editingId === s.id ? (
-                <UserEditor canManagePin={canManagePin} errorMsg={errorMsg} 
+                <UserEditor 
                   formData={formData} 
                   setFormData={setFormData} 
                   handleSave={handleSave} 
@@ -193,7 +165,7 @@ export function StaffSettings() {
               ) : (
                 <>
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${s.active ? 'bg-primary-100 text-primary-700' : 'bg-surface-200 text-surface-500'}`}>
+                    <div className={\`w-12 h-12 rounded-xl flex items-center justify-center font-bold \${s.active ? 'bg-primary-100 text-primary-700' : 'bg-surface-200 text-surface-500'}\`}>
                       {s.name.charAt(0)}
                     </div>
                     <div>
@@ -227,7 +199,7 @@ export function StaffSettings() {
   );
 }
 
-function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermission, errorMsg, canManagePin }: any) {
+function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermission }: any) {
   // Group permissions
   const groups = Array.from(new Set(ALL_PERMISSIONS.map(p => p.group)));
 
@@ -254,43 +226,35 @@ function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermiss
           </select>
         </div>
         
-        {(canManagePin || !formData.id) ? (
-          <>
-            <div>
-              <Label>رمز الدخول (PIN)</Label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 absolute right-3 top-3 text-surface-400" />
-                <Input 
-                  type="password" 
-                  placeholder={formData.id ? "اتركه فارغاً للاحتفاظ بالرمز الحالي" : "أدخل الرمز (4-6 أرقام)"} 
-                  className="pr-9 font-mono"
-                  maxLength={6}
-                  value={formData.pin_code || ''} 
-                  onChange={e => setFormData({...formData, pin_code: e.target.value.replace(/\D/g,'')})} 
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>تأكيد الرمز (Confirm PIN)</Label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 absolute right-3 top-3 text-surface-400" />
-                <Input 
-                  type="password" 
-                  placeholder="تأكيد الرمز السري" 
-                  className="pr-9 font-mono"
-                  maxLength={6}
-                  value={formData.confirm_pin || ''} 
-                  onChange={e => setFormData({...formData, confirm_pin: e.target.value.replace(/\D/g,'')})} 
-                />
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="col-span-1 md:col-span-2 p-3 bg-surface-50 text-surface-500 rounded-lg text-sm border border-surface-200">
-            ليس لديك صلاحية لتعديل الرمز السري.
+        <div>
+          <Label>رمز الدخول (PIN)</Label>
+          <div className="relative">
+            <KeyRound className="w-4 h-4 absolute right-3 top-3 text-surface-400" />
+            <Input 
+              type="password" 
+              placeholder={formData.id ? "اتركه فارغاً للاحتفاظ بالرمز الحالي" : "أدخل الرمز (4-6 أرقام)"} 
+              className="pr-9 font-mono"
+              maxLength={6}
+              value={formData.pin_code || ''} 
+              onChange={e => setFormData({...formData, pin_code: e.target.value.replace(/\\D/g,'')})} 
+            />
           </div>
-        )}
+        </div>
+
+        <div>
+          <Label>تأكيد الرمز (Confirm PIN)</Label>
+          <div className="relative">
+            <KeyRound className="w-4 h-4 absolute right-3 top-3 text-surface-400" />
+            <Input 
+              type="password" 
+              placeholder="تأكيد الرمز السري" 
+              className="pr-9 font-mono"
+              maxLength={6}
+              value={formData.confirm_pin || ''} 
+              onChange={e => setFormData({...formData, confirm_pin: e.target.value.replace(/\\D/g,'')})} 
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 bg-surface-50 p-3 rounded-lg border border-surface-200">
@@ -312,9 +276,8 @@ function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermiss
               {ALL_PERMISSIONS.filter(p => p.group === group).map(p => {
                 const isSelected = formData.permissions?.includes(p.key);
                 return (
-                  <label key={p.key} className={`flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg transition-colors ${isSelected ? 'bg-primary-50 text-primary-800' : 'hover:bg-surface-200 text-surface-700'}`}>
-                    <input type="checkbox" className="hidden" checked={!!isSelected} onChange={() => togglePermission(p.key)} />
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary-600 border-primary-600 text-white' : 'border-surface-300'}`}>
+                  <label key={p.key} className={\`flex items-center gap-2 text-sm cursor-pointer p-2 rounded-lg transition-colors \${isSelected ? 'bg-primary-50 text-primary-800' : 'hover:bg-surface-200 text-surface-700'}\`}>
+                    <div className={\`w-4 h-4 rounded border flex items-center justify-center \${isSelected ? 'bg-primary-600 border-primary-600 text-white' : 'border-surface-300'}\`}>
                       {isSelected && <Check className="w-3 h-3" />}
                     </div>
                     {p.label}
@@ -326,7 +289,6 @@ function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermiss
         </div>
       </div>
 
-      {errorMsg && <div className="p-3 bg-rose-50 text-rose-700 text-sm rounded-lg mb-4">{errorMsg}</div>}
       <div className="flex gap-2 pt-4 border-t border-surface-100 justify-end">
         <Button onClick={() => onCancel()} variant="secondary" className="w-32"><X className="w-4 h-4 mr-2" /> إلغاء</Button>
         <Button onClick={handleSave} className="w-32 bg-emerald-600 hover:bg-emerald-700 text-white"><Save className="w-4 h-4 mr-2" /> حفظ</Button>
@@ -334,3 +296,5 @@ function UserEditor({ formData, setFormData, handleSave, onCancel, togglePermiss
     </div>
   )
 }
+`;
+fs.writeFileSync('src/components/StaffSettings.tsx', code);

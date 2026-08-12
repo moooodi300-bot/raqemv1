@@ -1,4 +1,6 @@
-import { useState } from 'react';
+const fs = require('fs');
+
+const code = `import { useState } from 'react';
 import { Card, CardBody, Input, Button } from '@/components/ui';
 import { Shield, User, Lock, ArrowRight, X } from 'lucide-react';
 import type { Staff } from '@/lib/types';
@@ -19,7 +21,7 @@ export function PinEntryScreen({ onSuccess, onLogout }: PinEntryScreenProps) {
 
   const loadStaff = (): Staff[] => {
     if (organization?.id) {
-       const stored = localStorage.getItem(`tenant_staff_${organization.id}`);
+       const stored = localStorage.getItem(\`tenant_staff_\${organization.id}\`);
        if (stored) return JSON.parse(stored);
     }
     return SAMPLE_STAFF;
@@ -51,7 +53,7 @@ export function PinEntryScreen({ onSuccess, onLogout }: PinEntryScreenProps) {
   };
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); // support up to 6 digits
+    setPin(e.target.value.replace(/\\D/g, '').slice(0, 6)); // support up to 6 digits
     setError('');
   };
 
@@ -147,3 +149,5 @@ export function PinEntryScreen({ onSuccess, onLogout }: PinEntryScreenProps) {
     </div>
   );
 }
+`;
+fs.writeFileSync('src/components/PinEntryScreen.tsx', code);

@@ -27,11 +27,13 @@ interface JobCard {
   photosCount: number;
   totalAmount: number;
   createdAt: string;
+  staffId?: string;
+  staffName?: string;
   services: any[];
 }
 
 export function JobCardsPage() {
-  const { organization, settings } = useAuth();
+  const { organization, settings, activeEmployee } = useAuth();
   const { can } = usePermissions();
   const currentTenantId = organization?.id || 'org_client_01';
   const [cards, setCards] = useState<JobCard[]>([]);
@@ -115,7 +117,9 @@ export function JobCardsPage() {
       status: 'waiting',
       totalAmount,
       services: form.selectedServices,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      staffId: activeEmployee?.id,
+      staffName: activeEmployee?.name
     };
     saveCards([newCard, ...cards]);
     setShowAdd(false);
@@ -293,8 +297,11 @@ const toggleService = (srv: any) => {
               <div className="flex gap-2 mb-4">
                 <span className="text-xs font-mono bg-surface-100 text-surface-600 px-2 py-1 rounded border border-surface-200">{card.plate}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-surface-600 mb-4 border-t border-surface-100 pt-4">
+              <div className="flex items-center gap-2 text-sm text-surface-600 mb-2 border-t border-surface-100 pt-4">
                 <UserCircle className="w-4 h-4" /> {card.customerName} - {card.phone}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-surface-500 mb-4">
+                الموظف: {card.staffName || 'غير محدد'}
               </div>
               <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">

@@ -21,11 +21,11 @@ interface LayoutProps {
 }
 
 export function Layout({ active, onNavigate, children }: LayoutProps) {
-  const { role, setRole, staffName, setStaffName, lang, setLang, settings, organization, signOut, isDemo } = useAuth();
+  const { role, setRole, staffName, setStaffName, activeEmployee, lang, setLang, settings, organization, signOut, isDemo } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
 
-  const visibleModules = MODULES.filter((m) => canAccess(role, m.key, organization?.id));
+  const visibleModules = MODULES.filter((m) => canAccess(role, m.key, organization?.id, activeEmployee?.permissions));
   const isRTL = lang === 'ar';
   const dir = isRTL ? 'rtl' : 'ltr';
   const sidebarSide = isRTL ? 'right' : 'left';

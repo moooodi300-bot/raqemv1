@@ -81,6 +81,7 @@ export interface Staff {
   active: boolean;
   branch_id: string | null;
   pin_code: string | null;
+  permissions?: string[];
 }
 
 export interface Service {

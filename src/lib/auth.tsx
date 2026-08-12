@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import type { Role } from './rbac';
 import type { Lang } from './i18n';
-import type { Settings, Organization, Profile, SubscriptionPlan } from './types';
+import type { Settings, Organization, Profile, SubscriptionPlan, Staff } from './types';
 import { generateMockData } from './mockDataGenerator';
 
 interface AuthState {
@@ -14,6 +14,8 @@ interface AuthState {
   isDemo: boolean;
   role: Role;
   staffName: string;
+  activeEmployee: Staff | null;
+  setActiveEmployee: (s: Staff | null) => void;
   lang: Lang;
   settings: Settings | null;
   organization: Organization | null;
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState(false);
   const [role, setRole] = useState<Role>('owner');
   const [staffName, setStaffName] = useState<string>('');
+  const [activeEmployee, setActiveEmployee] = useState<Staff | null>(null);
   const [lang, setLang] = useState<Lang>('ar');
   const [settings, setSettingsState] = useState<Settings | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -319,6 +322,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isDemo,
     role,
     staffName,
+    activeEmployee,
+    setActiveEmployee,
     lang,
     settings,
     organization,
@@ -370,9 +375,9 @@ export function useAuth() {
 import { hasPermission as rbacHasPermission, type Permission } from './rbac';
 
 export function usePermissions() {
-  const { role, organization } = useAuth();
+  const { role, organization, activeEmployee } = useAuth();
   return {
-    can: (perm: Permission) => rbacHasPermission(role, perm, organization?.id),
+    can: (perm: Permission) => rbacHasPermission(role, perm, organization?.id, activeEmployee?.permissions),
     role
   };
 }

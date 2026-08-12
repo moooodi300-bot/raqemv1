@@ -12,7 +12,7 @@ export type Permission =
   | 'purchases.view' | 'purchases.create' | 'purchases.edit' | 'purchases.delete'
   | 'expenses.view' | 'expenses.add' | 'expenses.edit' | 'expenses.delete'
   | 'reports.view' | 'reports.export'
-  | 'settings.view' | 'settings.edit' | 'settings.loyalty' | 'settings.memberships' | 'settings.costs' | 'settings.users' | 'settings.roles'
+  | 'settings.view' | 'settings.edit' | 'settings.loyalty' | 'settings.memberships' | 'settings.costs' | 'settings.users' | 'settings.roles' | 'settings.manage_pin'
   | 'mobile.view'
   | 'billing.view';
 
@@ -54,6 +54,7 @@ export const ALL_PERMISSIONS: { key: Permission; label: string; group: string }[
   { key: 'settings.costs', label: 'إدارة التكاليف', group: 'Settings' },
   { key: 'settings.users', label: 'إدارة المستخدمين', group: 'Settings' },
   { key: 'settings.roles', label: 'إدارة الصلاحيات', group: 'Settings' },
+  { key: 'settings.manage_pin', label: 'إدارة أرقام الموظفين (PIN)', group: 'Settings' },
   { key: 'mobile.view', label: 'عرض النظام المتنقل', group: 'Mobile' },
   { key: 'billing.view', label: 'عرض الفوترة', group: 'Billing' },
 ];
@@ -88,10 +89,13 @@ export function saveRoles(roles: RoleDef[], tenantId?: string) {
   localStorage.setItem(`tenant_roles_${tenantId || "default"}`, JSON.stringify(customOnly));
 }
 
-export function hasPermission(roleId: string, permission: Permission, tenantId?: string): boolean {
+export function hasPermission(roleId: string, permission: string, tenantId?: string, customPermissions?: string[] | null): boolean {
+  if (customPermissions && Array.isArray(customPermissions) && customPermissions.length > 0) {
+    return customPermissions.includes(permission);
+  }
   const role = getRoles(tenantId).find(r => r.id === roleId);
   if (!role) return false;
-  return role.permissions.includes(permission);
+  return role.permissions.includes(permission as Permission);
 }
 
 export function roleLabel(role: string, lang: Lang, tenantId?: string): string {
@@ -142,6 +146,6 @@ export const MODULES: ModuleDef[] = [
   { key: 'billing', icon: 'CreditCard' },
 ];
 
-export function canAccess(role: string, key: ModuleKey, tenantId?: string): boolean {
-  return hasPermission(role, MODULE_PERMISSIONS[key], tenantId);
+export function canAccess(role: string, key: ModuleKey, tenantId?: string, customPermissions?: string[] | null): boolean {
+  return hasPermission(role, MODULE_PERMISSIONS[key], tenantId, customPermissions);
 }

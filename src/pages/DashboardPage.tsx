@@ -19,6 +19,7 @@ export function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSubs, setCustomerSubs] = useState<any[]>([]);
   const [subUsageLogs, setSubUsageLogs] = useState<any[]>([]);
@@ -31,6 +32,8 @@ export function DashboardPage() {
   useEffect(() => {
     (async () => {
       try {
+        const storedStaff = localStorage.getItem(`tenant_staff_${currentTenantId}`);
+        if(storedStaff) setStaff(JSON.parse(storedStaff));
         const storedSales = localStorage.getItem(`tenant_sales_${currentTenantId}`);
         const parsedSales = storedSales ? JSON.parse(storedSales) : [];
         setSales(parsedSales.map((s: any) => ({
@@ -143,6 +146,18 @@ export function DashboardPage() {
 
     return { totalSales, totalExpenses, totalPurchases, netProfit, totalServices };
   }, [sales, expenses, purchases, startDate, endDate]);
+
+    const recentActivities = [...sales]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 15)
+    .map(s => {
+       const sName = staff.find(st => st.id === s.staff_id)?.name || 'غير محدد';
+       return {
+          id: s.id,
+          time: new Date(s.created_at),
+          text: `${sName} قام بإنشاء ${s.is_free ? 'غسلة مجانية' : (s.is_refund ? 'استرجاع فاتورة' : 'فاتورة مبيعات')} بقيمة ${s.total} ريال`
+       };
+    });
 
   const customerStats = useMemo(() => {
     const activeCustomers = customers.filter(c => c.customer_status === 'active' || !c.customer_status).length;
@@ -373,6 +388,34 @@ export function DashboardPage() {
               </div>
            </CardBody>
          </Card>
+      </div>
+
+      {/* Activity Feed */}
+      <div className="pt-6">
+        <PageHeader title="سجل النشاطات" subtitle="آخر العمليات التي قام بها الموظفون" />
+        <Card>
+          <CardBody className="p-0">
+            {recentActivities.length > 0 ? (
+              <div className="divide-y divide-surface-100 max-h-96 overflow-y-auto">
+                {recentActivities.map(act => (
+                  <div key={act.id} className="p-4 hover:bg-surface-50 flex items-start gap-4 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                      <Activity className="w-5 h-5 text-primary-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-surface-800">{act.text}</p>
+                      <p className="text-xs text-surface-500 mt-1">{act.time.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })} - {act.time.toLocaleDateString('ar-SA')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-surface-500">
+                لا توجد نشاطات حديثة
+              </div>
+            )}
+          </CardBody>
+        </Card>
       </div>
     </div>
   );

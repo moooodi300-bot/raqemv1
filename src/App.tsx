@@ -25,7 +25,7 @@ const MobilePage = React.lazy(() => import('@/pages/MobilePage').then(module => 
 const BillingPage = React.lazy(() => import('@/pages/BillingPage').then(module => ({ default: module.BillingPage })));
 
 function AppContent() {
-  const { role, lang, organization } = useAuth();
+  const { role, lang, organization, activeEmployee } = useAuth();
   const [active, setActive] = useState<ModuleKey>('dashboard');
   const handleNav = (key: ModuleKey) => {
     React.startTransition(() => {
@@ -33,7 +33,7 @@ function AppContent() {
     });
   };
 
-  const effectiveKey = canAccess(role, active, organization?.id) ? active : 'dashboard';
+  const effectiveKey = canAccess(role, active, organization?.id, activeEmployee?.permissions) ? active : 'dashboard';
 
   const renderPage = () => {
     switch (effectiveKey) {
@@ -56,7 +56,7 @@ function AppContent() {
       <PWAInstallPrompt />
       <Layout active={effectiveKey} onNavigate={handleNav}>
         <Suspense fallback={<div className="flex h-full items-center justify-center p-12"><Spinner label={tr('loading', lang)} /></div>}>
-          {canAccess(role, effectiveKey, organization?.id) ? renderPage() : (
+          {canAccess(role, effectiveKey, organization?.id, activeEmployee?.permissions) ? renderPage() : (
             <Card><CardBody>
               <div className="flex flex-col items-center justify-center py-16 text-surface-400">
                 <ShieldAlert className="w-10 h-10 mb-3" />
@@ -73,7 +73,7 @@ function AppContent() {
 function Gate() {
   const { session, booting, setRole, setStaffName, signOut, organization } = useAuth();
   const [showSignUp, setShowSignUp] = useState(false);
-  const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
+  const { activeEmployee, setActiveEmployee } = useAuth();
 
   const [mockReady, setMockReady] = useState(false);
 
@@ -86,7 +86,7 @@ function Gate() {
 
   useEffect(() => {
     const handleSwitch = () => {
-      setCurrentStaff(null);
+      setActiveEmployee(null);
     };
     window.addEventListener('switchUser', handleSwitch);
     return () => window.removeEventListener('switchUser', handleSwitch);
@@ -115,9 +115,9 @@ function Gate() {
     );
   }
 
-  if (!currentStaff) {
+  if (!activeEmployee) {
     return <PinEntryScreen onSuccess={(staff) => {
-      setCurrentStaff(staff);
+      setActiveEmployee(staff);
       setRole(staff.role as any);
       setStaffName(staff.name);
     }} onLogout={() => signOut()} />;

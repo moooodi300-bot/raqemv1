@@ -5,7 +5,7 @@ import {
   Wallet, CreditCard, DollarSign, Activity, Download
 } from 'lucide-react';
 import { formatSAR, formatDateTime } from '@/lib/format';
-import { useAuth } from '@/lib/auth';
+import { useAuth, usePermissions } from '@/lib/auth';
 import type { Sale, Customer } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { getTenantCustomerSubscriptions } from '@/lib/subscriptionStore';
@@ -637,7 +637,7 @@ export function InvoicesPage() {
                           </Button>
 
                           {/* Refund Invoice Button */}
-                          {!isRefunded && sale.total > 0 && (
+                          {!isRefunded && sale.total > 0 && can('sales.refund') && (
                             <Button
                               type="button"
                               size="sm"

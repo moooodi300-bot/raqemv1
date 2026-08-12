@@ -30,7 +30,7 @@ import {
 interface CartItem { service: Service; qty: number; }
 
 export function SalesPage() {
-  const { staffName, lang, settings, organization } = useAuth();
+  const { staffName, lang, settings, organization, activeEmployee } = useAuth();
   const { can } = usePermissions();
   const currentTenantId = organization?.id || 'org_client_01';
   const loyaltyTarget = getLoyaltyTarget(settings);
@@ -117,7 +117,7 @@ export function SalesPage() {
       }
       
       if (!openShift) {
-        const staffId = loadedSt.find((s) => s.name === staffName)?.id ?? loadedSt[0]?.id ?? null;
+        const staffId = activeEmployee?.id ?? null;
         const branchId = loadedBr[0]?.id ?? null;
         openShift = { 
           id: 'shift-' + Date.now(), 
@@ -254,7 +254,7 @@ export function SalesPage() {
   };
 
   const openShift = async () => {
-    const staffId = staff.find((s) => s.name === staffName)?.id ?? staff[0]?.id ?? null;
+    const staffId = activeEmployee?.id ?? null;
     const branchId = branches[0]?.id ?? null;
     const openingCash = Number(shiftForm.opening_cash) || 0;
     const newShiftObj = { end_time: null, closing_cash: 0, notes: null,
@@ -279,7 +279,7 @@ export function SalesPage() {
 
   const handleStartNewShift = async () => {
     setShowShiftSummaryModal(false);
-    const staffId = staff.find((s) => s.name === staffName)?.id ?? staff[0]?.id ?? null;
+    const staffId = activeEmployee?.id ?? null;
     const branchId = branches[0]?.id ?? null;
     const newShiftObj = { end_time: null, closing_cash: 0, notes: null,
       staff_id: staffId,
@@ -499,7 +499,7 @@ setShowAddCust(false);
     setCustomers(prev => prev.map(c => c.id === activeCust!.id ? updatedCust : c));
 
     // Create Sale for revenue and invoice tracking
-    const staffId = staff.find((s) => s.name === staffName)?.id ?? staff[0]?.id ?? null;
+    const staffId = activeEmployee?.id ?? null;
     const saleId = 'inv-' + Date.now();
     const finalSale = {
       id: saleId,
@@ -683,7 +683,7 @@ setShowAddCust(false);
       created_at: new Date().toISOString(),
     };
 
-    const staffId = staff.find((s) => s.name === staffName)?.id ?? staff[0]?.id ?? null;
+    const staffId = activeEmployee?.id ?? null;
     const branchId = branches[0]?.id ?? null;
 
     const res = consumeSubscriptionWash(csub.id, 'خصم فوري من تبويب غسيل الاشتراك بالكاشير', currentTenantId);
@@ -805,7 +805,7 @@ setShowAddCust(false);
     setDiscountError('');
     setAppliedDiscount(null);
 
-    const staffId = staff.find((s) => s.name === staffName)?.id ?? staff[0]?.id ?? null;
+    const staffId = activeEmployee?.id ?? null;
     const branchId = branches[0]?.id ?? null;
     const activeCustomerId = effectiveCustomer?.id || customerId || null;
 
