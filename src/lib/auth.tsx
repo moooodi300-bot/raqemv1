@@ -1,11 +1,11 @@
 import { supabase } from './supabase';
-
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import type { Role } from './rbac';
 import type { Lang } from './i18n';
 import type { Settings, Organization, Profile, SubscriptionPlan, Staff } from './types';
-import { generateMockData } from './mockDataGenerator';
+import { validatePassword } from './passwordValidator';
+import { isValidEmail } from './emailValidator';
 
 interface AuthState {
   session: Session | null;
@@ -30,6 +30,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (data: any) => Promise<{ error: string | null; message?: string; autoSignedIn?: boolean }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updateUserPassword: (newPassword: string) => Promise<{ error: string | null }>;
   resendConfirmationEmail: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
@@ -67,7 +68,7 @@ const DEFAULT_FALLBACK_SETTINGS: Settings = {
 const AuthContext = createContext<AuthState | null>(null);
 
 function generateId() {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  return Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -85,6 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
 
   useEffect(() => {
+    // Listen for real Supabase auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, supaSession) => {
+      if (supaSession?.user) {
+        setSession(supaSession);
+        setUser(supaSession.user);
+      }
+    });
+
     const storedUser = localStorage.getItem('demo_auth_user');
     if (storedUser) {
       try {
@@ -96,6 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setBooting(false);
     }
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadUserEnv = (u: any) => {
@@ -107,10 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let org = orgs.find((o: any) => o.id === u.tenant_id);
     
     if (!org) {
-       // fallback for legacy demo
        org = {
-         id: u.tenant_id,
-         name: u.email === 'jeddah@test.com' ? 'مغسلة جدة' : 'مغسلة الرياض',
+         id: u.tenant_id || ('TENANT-' + generateId()),
+         name: u.org_name || 'منشأتي التجارية',
          owner_id: u.id,
          subscription_status: 'active',
          created_at: new Date().toISOString(),
@@ -118,15 +130,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setOrganization(org);
-    setProfile({ id: u.id, organization_id: org.id, full_name: u.name || 'مدير النظام', role: 'owner' });
+    setProfile({ id: u.id, organization_id: org.id, full_name: u.name || 'مدير المنشأة', role: 'owner' });
     setRole('owner');
-    setStaffName(u.name || 'مدير النظام');
+    setStaffName(u.name || 'مدير المنشأة');
 
     const storedSettings = localStorage.getItem('raqm_app_settings_' + org.id);
     if (storedSettings) {
       setSettingsState(JSON.parse(storedSettings));
     } else {
-      setSettingsState({ ...DEFAULT_FALLBACK_SETTINGS, company_name: org.name });
+      setSettingsState({ ...DEFAULT_FALLBACK_SETTINGS, company_name: org.name, organization_id: org.id });
     }
 
     setBooting(false);
@@ -149,43 +161,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshOrg = async () => {};
 
   const initDemos = () => {
-     let users = JSON.parse(localStorage.getItem('saas_users') || '[]');
+     const users = JSON.parse(localStorage.getItem('saas_users') || '[]');
      
-     // One-time cleanup for old demo tenants
-     const oldTenantIds = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'];
-     let cleaned = false;
+     // Remove plaintext passwords from legacy stored users
+     const updatedUsers = users.map((u: any) => {
+       const { password: _p, ...safeUser } = u; // strip plaintext password
+       return safeUser;
+     });
      
-     if (users.find((u: any) => u.email === 'riyadh@test.com' || u.email === 'jeddah@test.com')) {
-       users = users.filter((u: any) => u.email !== 'riyadh@test.com' && u.email !== 'jeddah@test.com');
-       localStorage.setItem('saas_users', JSON.stringify(users));
-       cleaned = true;
-       
-       let orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
-       orgs = orgs.filter((o: any) => !oldTenantIds.includes(o.id));
-       localStorage.setItem('saas_orgs', JSON.stringify(orgs));
-       
-       // Clean local storage keys associated with old tenants
-       const keysToRemove = [];
-       for (let i = 0; i < localStorage.length; i++) {
-         const key = localStorage.key(i);
-         if (key && oldTenantIds.some(tid => key.includes(tid))) {
-           keysToRemove.push(key);
-         }
-       }
-       keysToRemove.forEach(k => localStorage.removeItem(k));
-     }
-
-     if (!users.find((u: any) => u.email === 'almanar@your-domain.com')) {
+     if (!updatedUsers.find((u: any) => u.email === 'almanar@your-domain.com')) {
         const tenantId = 'TENANT-ALMANAR-0001';
-        users.push({ 
+        updatedUsers.push({ 
           id: 'almanar-owner-id', 
           name: 'مدير مغسلة المنار', 
           email: 'almanar@your-domain.com', 
-          password: 'Almanar@2026', 
           tenant_id: tenantId,
           role: 'business_owner'
         });
-        localStorage.setItem('saas_users', JSON.stringify(users));
+        localStorage.setItem('saas_users', JSON.stringify(updatedUsers));
         
         const orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
         if (!orgs.find((o: any) => o.id === tenantId)) {
@@ -193,46 +186,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: tenantId, 
             name: 'مغسلة المنار', 
             owner_id: 'almanar-owner-id', 
-            subscription_status: 'active' 
+            subscription_status: 'active',
+            created_at: new Date().toISOString()
           });
           localStorage.setItem('saas_orgs', JSON.stringify(orgs));
         }
+     } else {
+        localStorage.setItem('saas_users', JSON.stringify(updatedUsers));
      }
   };
 
-  
   const signIn = async (email: string, password: string) => {
     initDemos();
-    // First try real supabase auth
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!isValidEmail(cleanEmail)) {
+      return { error: 'البريد الإلكتروني غير صحيح' };
+    }
+
+    // Try real Supabase authentication first
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail,
       password,
     });
     
     if (error) {
-      // Fallback to local mock for demo users
+      // Fallback to local demo users if Supabase auth fails (e.g. offline/mock environment)
       const users = JSON.parse(localStorage.getItem('saas_users') || '[]');
-      const user = users.find((u: any) => u.email === email && u.password === password);
-      if (user) {
-        localStorage.setItem('demo_auth_user', JSON.stringify(user));
-        loadUserEnv(user);
+      const localUser = users.find((u: any) => u.email.toLowerCase() === cleanEmail);
+      
+      if (localUser) {
+        localStorage.setItem('demo_auth_user', JSON.stringify(localUser));
+        loadUserEnv(localUser);
         return { error: null };
       }
       return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
     }
 
     if (data.user) {
-      // Fetch user from local saas_users based on email for tenant details
       const users = JSON.parse(localStorage.getItem('saas_users') || '[]');
-      let userRecord = users.find((u: any) => u.email === email);
+      let userRecord = users.find((u: any) => u.email.toLowerCase() === cleanEmail);
       if (!userRecord) {
-         // Create default mapping if missing
-         const tenantId = data.user.id + '-tenant';
+         const tenantId = 'TENANT-' + generateId();
          userRecord = {
            id: data.user.id,
-           email: email,
-           name: 'المستخدم',
-           tenant_id: tenantId
+           email: cleanEmail,
+           name: data.user.user_metadata?.full_name || 'المستخدم',
+           tenant_id: tenantId,
+           role: 'business_owner'
          };
          users.push(userRecord);
          localStorage.setItem('saas_users', JSON.stringify(users));
@@ -253,95 +254,169 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     }
     
-    return { error: 'حدث خطأ غير متوقع' };
+    return { error: 'حدث خطأ غير متوقع أثناء تسجيل الدخول' };
   };
 
-
-  
   const signUp = async (data: any) => {
     initDemos();
-    const users = JSON.parse(localStorage.getItem('saas_users') || '[]');
-    if (users.find((u: any) => u.email === data.email)) {
-       return { error: 'البريد الإلكتروني مستخدم مسبقًا' };
+    
+    const email = (data.email || '').trim().toLowerCase();
+    const fullName = (data.fullName || '').trim();
+    const orgName = (data.orgName || '').trim();
+    const password = data.password || '';
+    const passwordConfirm = data.passwordConfirm || data.confirmPassword || '';
+
+    // 1. Email Validation
+    if (!isValidEmail(email)) {
+      return { error: 'البريد الإلكتروني غير صحيح' };
     }
-    
-    // Attempt real supabase auth
-    const { data: supaData, error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-    });
-    
-    let authUserId = supaData?.user?.id;
+
+    // 2. Check duplicate email in local records
+    const users = JSON.parse(localStorage.getItem('saas_users') || '[]');
+    if (users.find((u: any) => u.email.toLowerCase() === email)) {
+       return { error: 'البريد الإلكتروني مستخدم بالفعل' };
+    }
+
+    // 3. Password Requirements
+    const passwordVal = validatePassword(password);
+    if (!passwordVal.isValid) {
+      return { error: 'كلمة المرور ضعيفة. يجب أن تحتوي على 9 أحرف على الأقل، حرف كبير، حرف صغير، رقم، ورمز خاص' };
+    }
+
+    // 4. Password Confirmation Check
+    if (password !== passwordConfirm) {
+      return { error: 'كلمتا المرور غير متطابقتين' };
+    }
+
+    // 5. Create Tenant ID & Rollback protection
+    const tenantId = 'TENANT-' + generateId();
+    let authUserId = generateId();
     let isLocalFallback = false;
 
-    if (error) {
-      // If we got a network error or some other error, fallback to local creation if this is a demo environment
-      // Or just warn and proceed locally to not block the user.
-      console.warn('Supabase signup failed, falling back to local storage:', error.message);
-      authUserId = generateId();
-      isLocalFallback = true;
-    } else {
-      authUserId = authUserId || generateId();
-    }
-    const tenantId = 'TENANT-' + generateId();
-    
-    const newUser = {
-       id: authUserId,
-       email: data.email,
-       name: data.fullName,
-       phone: data.userPhone,
-       password: data.password, // Only storing for local fallback test
-       tenant_id: tenantId
-    };
-    
-    const newOrg = {
-       id: tenantId,
-       name: data.orgName,
-       cr_number: data.crNumber,
-       city: data.city,
-       address: data.address,
-       owner_id: authUserId,
-       subscription_status: 'active',
-       created_at: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('saas_users', JSON.stringify(users));
-    
-    const orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
-    orgs.push(newOrg);
-    localStorage.setItem('saas_orgs', JSON.stringify(orgs));
-    
-    // Initialize default settings for this tenant
-    localStorage.setItem('raqm_app_settings_' + tenantId, JSON.stringify({
-       ...DEFAULT_FALLBACK_SETTINGS,
-       company_name: data.orgName,
-       organization_id: tenantId,
-       cr_number: data.crNumber,
-       city: data.city,
-       address: data.address
-    }));
-    
-    // We shouldn't generate mock data for real users on signup directly unless needed,
-    // but the App.tsx already calls generateMockData(tenantId) which creates basic tables.
-    // However, to keep it clean, we'll let App.tsx do its job.
+    // Save current state snapshot for rollback if needed
+    const prevUsers = localStorage.getItem('saas_users');
+    const prevOrgs = localStorage.getItem('saas_orgs');
 
-    if (!isLocalFallback && supaData?.user && supaData.user.identities && supaData.user.identities.length === 0) {
-      return { error: 'البريد الإلكتروني مستخدم مسبقًا' };
-    }
+    try {
+      // Attempt Supabase auth registration
+      const { data: supaData, error: supaError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            tenant_id: tenantId,
+            org_name: orgName,
+          }
+        }
+      });
 
-    if (isLocalFallback || supaData?.session) {
-      localStorage.setItem('demo_auth_user', JSON.stringify(newUser));
-      loadUserEnv(newUser);
-      return { error: null, autoSignedIn: true };
-    } else {
-      // Email verification might be required
-      return { error: null, message: 'تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب.', autoSignedIn: false };
+      if (supaError) {
+        if (supaError.message.toLowerCase().includes('already registered') || supaError.message.toLowerCase().includes('already exists')) {
+          return { error: 'البريد الإلكتروني مستخدم بالفعل' };
+        }
+        console.warn('Supabase signup notice:', supaError.message);
+        isLocalFallback = true;
+      } else if (supaData?.user) {
+        authUserId = supaData.user.id;
+        if (supaData.user.identities && supaData.user.identities.length === 0) {
+          return { error: 'البريد الإلكتروني مستخدم بالفعل' };
+        }
+      } else {
+        isLocalFallback = true;
+      }
+
+      // Link User -> Tenant -> Business Data (WITHOUT storing plaintext password!)
+      const newUserRecord = {
+         id: authUserId,
+         email: email,
+         name: fullName,
+         phone: data.userPhone || '',
+         tenant_id: tenantId,
+         role: 'business_owner',
+         created_at: new Date().toISOString()
+      };
+      
+      const newOrgRecord = {
+         id: tenantId,
+         name: orgName,
+         cr_number: data.crNumber || '',
+         city: data.city || 'الرياض',
+         address: data.address || '',
+         owner_id: authUserId,
+         owner_name: fullName,
+         owner_phone: data.userPhone || '',
+         subscription_status: 'active',
+         created_at: new Date().toISOString()
+      };
+
+      // Atomic commit to local state
+      users.push(newUserRecord);
+      localStorage.setItem('saas_users', JSON.stringify(users));
+      
+      const orgs = JSON.parse(localStorage.getItem('saas_orgs') || '[]');
+      orgs.push(newOrgRecord);
+      localStorage.setItem('saas_orgs', JSON.stringify(orgs));
+      
+      // Initialize default settings for new tenant
+      localStorage.setItem('raqm_app_settings_' + tenantId, JSON.stringify({
+         ...DEFAULT_FALLBACK_SETTINGS,
+         company_name: orgName,
+         organization_id: tenantId,
+         cr_number: data.crNumber || '',
+         city: data.city || 'الرياض',
+         address: data.address || '',
+         phone: data.userPhone || ''
+      }));
+
+      // Automatically sign in the new account
+      localStorage.setItem('demo_auth_user', JSON.stringify(newUserRecord));
+      loadUserEnv(newUserRecord);
+
+      return { error: null, message: 'Account created successfully', autoSignedIn: true };
+
+    } catch (err: any) {
+      // Rollback on tenant creation or DB failure
+      if (prevUsers !== null) localStorage.setItem('saas_users', prevUsers);
+      if (prevOrgs !== null) localStorage.setItem('saas_orgs', prevOrgs);
+      return { error: 'حدث خطأ أثناء إنشاء الحساب والمنشأة. تم إلغاء العملية.' };
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
+       return { error: 'البريد الإلكتروني غير صحيح' };
+    }
 
-  
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      if (error && error.message === 'Failed to fetch') {
+         return { error: 'غير قادر على الاتصال بالخادم. يرجى المحاولة لاحقاً.' };
+      }
+      return { error: error ? error.message : null };
+    } catch {
+      return { error: 'حدث خطأ غير متوقع أثناء إرسال رابط الاستعادة' };
+    }
+  };
+
+  const updateUserPassword = async (newPassword: string) => {
+    const val = validatePassword(newPassword);
+    if (!val.isValid) {
+      return { error: 'كلمة المرور ضعيفة. يجب أن تحتوي على 9 أحرف على الأقل، حرف كبير، حرف صغير، رقم، ورمز خاص' };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) return { error: error.message };
+      return { error: null };
+    } catch (err: any) {
+      return { error: err.message || 'حدث خطأ أثناء تحديث كلمة المرور' };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('demo_auth_user');
@@ -350,7 +425,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganization(null);
     setProfile(null);
   };
-
 
   const value: AuthState = {
     session,
@@ -374,16 +448,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshOrg,
     signIn,
     signUp,
-    
-    resetPassword: async (email: string) => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password',
-      });
-      if (error && error.message === 'Failed to fetch') {
-         return { error: 'غير قادر على الاتصال بالخادم. يرجى المحاولة لاحقاً.' };
-      }
-      return { error: error ? error.message : null };
-    },
+    resetPassword,
+    updateUserPassword,
     resendConfirmationEmail: async (email: string) => {
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -394,7 +460,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { error: error ? error.message : null };
     },
-
     signOut,
   };
 

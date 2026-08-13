@@ -9,11 +9,12 @@ import { getTenantPackages, saveTenantPackage, deleteTenantPackage } from '@/lib
 
 import { StaffSettings } from '@/components/StaffSettings';
 import { DiscountsSettings } from '@/components/DiscountsSettings';
+import { UserSecuritySettings } from '@/components/UserSecuritySettings';
 
 export function SettingsPage() {
   const { signOut, user, organization, settings, refreshSettings, setSettings } = useAuth();
   const currentTenantId = organization?.id || 'org_client_01';
-  const [activeTab, setActiveTab] = useState<'facility' | 'services' | 'packages' | 'costs' | 'staff' | 'fleet' | 'loyalty' | 'whatsapp' | 'backup' | 'discounts'>('facility');
+  const [activeTab, setActiveTab] = useState<'facility' | 'services' | 'packages' | 'costs' | 'staff' | 'fleet' | 'loyalty' | 'whatsapp' | 'backup' | 'discounts' | 'security'>('facility');
   
   const [facility, setFacility] = useState({ name: settings?.company_name || organization?.name || 'مغسلتي', phone: settings?.phone || '', vat: settings?.vat_number || '', cr: (settings as any)?.cr_number || '' });
   
@@ -227,10 +228,14 @@ export function SettingsPage() {
           <button onClick={() => setActiveTab('backup')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'backup' ? 'bg-primary-600 text-white shadow-md' : 'text-surface-600 hover:bg-surface-100'}`}>
             <Database className="w-5 h-5" /> النسخ الاحتياطي
           </button>
+          <button onClick={() => setActiveTab('security')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'security' ? 'bg-primary-600 text-white shadow-md' : 'text-surface-600 hover:bg-surface-100'}`}>
+            <Shield className="w-5 h-5 text-amber-500" /> الأمان وكلمة المرور
+          </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 space-y-6">
+          {activeTab === 'security' && <UserSecuritySettings />}
           {activeTab === 'facility' && (
             <Card>
               <CardBody className="p-6 space-y-6">

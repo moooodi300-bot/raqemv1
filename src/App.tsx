@@ -5,12 +5,12 @@ import { canAccess, type ModuleKey } from '@/lib/rbac';
 import { generateMockData } from '@/lib/mockDataGenerator';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignUpPage } from '@/pages/SignUpPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { Card, CardBody, Spinner } from '@/components/ui';
 import { ShieldAlert } from 'lucide-react';
 import { tr } from '@/lib/i18n';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { PinEntryScreen } from '@/components/PinEntryScreen';
-import type { Staff } from '@/lib/types';
 
 import React, { Suspense } from 'react';
 const DashboardPage = React.lazy(() => import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
@@ -73,11 +73,21 @@ function AppContent() {
 }
 
 function Gate() {
-  const { session, booting, setRole, setStaffName, signOut, organization } = useAuth();
+  const { session, booting, setRole, setStaffName, signOut, organization, lang } = useAuth();
   const [showSignUp, setShowSignUp] = useState(false);
   const { activeEmployee, setActiveEmployee } = useAuth();
+  const [isResetRoute, setIsResetRoute] = useState(false);
 
   const [mockReady, setMockReady] = useState(false);
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    const search = window.location.search;
+    if (path.includes('/reset-password') || hash.includes('type=recovery') || search.includes('type=recovery')) {
+      setIsResetRoute(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (session && organization?.id) {
@@ -93,6 +103,13 @@ function Gate() {
     window.addEventListener('switchUser', handleSwitch);
     return () => window.removeEventListener('switchUser', handleSwitch);
   }, []);
+
+  if (isResetRoute) {
+    return <ResetPasswordPage lang={lang} onGoToLogin={() => {
+      setIsResetRoute(false);
+      window.history.pushState({}, '', '/');
+    }} />;
+  }
 
   if (booting) {
     return (

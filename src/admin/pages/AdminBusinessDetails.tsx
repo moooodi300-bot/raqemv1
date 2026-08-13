@@ -4,25 +4,22 @@ import {
   ArrowRight,
   Users,
   CreditCard,
-  Activity,
   Package,
-  Building2,
-  ExternalLink,
-  Car,
   Receipt,
   Wrench,
   CheckCircle,
   PauseCircle,
   Calendar,
-  FileSpreadsheet
+  Lock
 } from 'lucide-react';
 import { Lang, tr } from '../lib/i18n';
 import { adminDataService } from '../lib/adminDataService';
+import { AdminUserPasswordManagement } from '../components/AdminUserPasswordManagement';
 
 export function AdminBusinessDetails({ tenantId, onBack, lang }: { tenantId: string; onBack: () => void; lang: Lang }) {
   const [details, setDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'customers' | 'sales' | 'jobCards' | 'subscriptions' | 'purchases'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'sales' | 'jobCards' | 'subscriptions' | 'purchases' | 'passwords'>('customers');
 
   const loadDetails = async () => {
     setLoading(true);
@@ -204,9 +201,23 @@ export function AdminBusinessDetails({ tenantId, onBack, lang }: { tenantId: str
             <Package className="w-4 h-4" />
             المشتريات والمصروفات ({purchases.length + expenses.length})
           </button>
+          <button
+            onClick={() => setActiveTab('passwords')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'passwords' ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Lock className="w-4 h-4 text-amber-300" />
+            إدارة كلمات المرور للحسابات
+          </button>
         </div>
 
         <div className="p-6">
+          {/* Passwords Tab */}
+          {activeTab === 'passwords' && (
+            <AdminUserPasswordManagement lang={lang} selectedTenantId={tenantId} />
+          )}
+
           {/* Customers Tab */}
           {activeTab === 'customers' && (
             <div className="overflow-x-auto">
@@ -406,4 +417,3 @@ export function AdminBusinessDetails({ tenantId, onBack, lang }: { tenantId: str
     </div>
   );
 }
-

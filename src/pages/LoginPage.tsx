@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Loader2, Shield, Key, Mail, Building2, AlertCircle, ArrowRight, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { tr } from '@/lib/i18n';
 import { Button, Card, CardBody } from '@/components/ui';
+import { isValidEmail } from '@/lib/emailValidator';
 
 interface LoginPageProps {
   onSignUpClick: () => void;
@@ -29,15 +29,17 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: signInErr } = await signIn(email, password);
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
+      setError(lang === 'ar' ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address');
+      setLoading(false);
+      return;
+    }
+
+    const { error: signInErr } = await signIn(cleanEmail, password);
     if (signInErr) {
-      if (signInErr.toLowerCase().includes('email not confirmed') || signInErr.includes('not confirmed')) {
-        setError(lang === 'ar' ? 'لم يتم تفعيل الحساب عبر رقم الجوال بعد.' : 'Account not verified yet.');
-      } else if (signInErr.toLowerCase().includes('invalid login credentials')) {
-        setError(lang === 'ar' ? 'رقم الجوال أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
-      } else {
-        setError(signInErr);
-      }
+      setError(signInErr);
     }
 
     setLoading(false);
@@ -48,24 +50,29 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
     setError(null);
     setResetSentStatus(null);
 
-    if (!email.trim()) {
-      setError('الرجاء إدخال رقم الجوال الخاص بحسابك');
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      setError(lang === 'ar' ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address');
       return;
     }
 
     setLoading(true);
-    const { error: resetErr } = await resetPassword(email.trim());
+    const { error: resetErr } = await resetPassword(cleanEmail);
     setLoading(false);
 
     if (resetErr) {
-      setResetSentStatus(lang === 'ar' ? `تم إرسال رابط وإرشادات استعادة كلمة المرور لـ (${email}) بنجاح!` : `Recovery instructions sent to (${email}) successfully!`);
+      setError(resetErr);
     } else {
-      setResetSentStatus(lang === 'ar' ? `تم إرسال رابط تعيين كلمة المرور الجديدة لـ (${email}) بنجاح!` : `Password reset link sent to (${email}) successfully!`);
+      setResetSentStatus(
+        lang === 'ar'
+          ? `تم إرسال رابط تعيين كلمة المرور الجديدة لـ (${cleanEmail}) بنجاح! تحقق من صندوق الوارد.`
+          : `Password reset link sent to (${cleanEmail}) successfully! Check your inbox.`
+      );
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-surface-50">
+    <div className="min-h-screen flex flex-col md:flex-row bg-surface-50" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* Right Side - Form */}
       <div className="flex-1 flex items-center justify-center p-4 lg:p-8 relative">
         <div className="absolute top-4 left-4 lg:top-8 lg:left-8">
@@ -108,38 +115,42 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
               )}
 
               {mode === 'signin' ? (
-                <form onSubmit={handleSubmit} className="space-y-5 text-right">
+                <form onSubmit={handleSubmit} className="space-y-5 text-start">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-surface-700 ml-1">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
+                    <label className="text-sm font-bold text-surface-700">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
                         <Mail className="h-5 w-5 text-surface-400" />
                       </div>
                       <input
-                        type="text"
+                        type="email"
                         dir="ltr"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-4 pr-11 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
-                        placeholder={lang === 'ar' ? "البريد الإلكتروني" : "Email"}
+                        className="w-full ps-11 pe-4 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
+                        placeholder={lang === 'ar' ? "name@example.com" : "name@example.com"}
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="flex justify-between items-center ml-1">
+                    <div className="flex justify-between items-center">
                       <label className="text-sm font-bold text-surface-700">{lang === 'ar' ? 'كلمة المرور' : 'Password'}</label>
                       <button
                         type="button"
-                        onClick={() => setMode('forgot_password')}
+                        onClick={() => {
+                          setMode('forgot_password');
+                          setError(null);
+                          setResetSentStatus(null);
+                        }}
                         className="text-xs font-bold text-primary-600 hover:text-primary-700 transition-colors"
                       >
                         {lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
                       </button>
                     </div>
                     <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
                         <Key className="h-5 w-5 text-surface-400" />
                       </div>
                       <input
@@ -147,39 +158,39 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
                         dir="ltr"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-4 pr-11 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
+                        className="w-full ps-11 pe-4 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
                         placeholder="••••••••"
                         required
                       />
                     </div>
                   </div>
 
-                  <Button id="submit-login-btn" type="submit" disabled={loading} className="w-full h-12 text-base font-bold rounded-xl mt-4 bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 shadow-lg shadow-primary-900/20">
+                  <Button id="submit-login-btn" type="submit" disabled={loading} className="w-full h-12 text-base font-bold rounded-xl mt-4 bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 shadow-lg shadow-primary-900/20 text-white">
                     {loading ? (lang === 'ar' ? 'جاري الدخول...' : 'Logging in...') : (lang === 'ar' ? 'تسجيل الدخول' : 'Login')}
                   </Button>
                 </form>
               ) : (
-                <form onSubmit={handleForgotPassword} className="space-y-5 text-right">
+                <form onSubmit={handleForgotPassword} className="space-y-5 text-start">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-surface-700 ml-1">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
+                    <label className="text-sm font-bold text-surface-700">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
                         <Mail className="h-5 w-5 text-surface-400" />
                       </div>
                       <input
-                        type="text"
+                        type="email"
                         dir="ltr"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-4 pr-11 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
-                        placeholder={lang === 'ar' ? "البريد الإلكتروني" : "Email"}
+                        className="w-full ps-11 pe-4 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-left"
+                        placeholder={lang === 'ar' ? "name@example.com" : "name@example.com"}
                         required
                       />
                     </div>
                   </div>
 
-                  <Button id="submit-login-btn" type="submit" disabled={loading} className="w-full h-12 text-base font-bold rounded-xl mt-4">
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (lang === 'ar' ? 'إرسال رابط الاستعادة' : 'Send Recovery Link')}
+                  <Button id="submit-login-btn" type="submit" disabled={loading} className="w-full h-12 text-base font-bold rounded-xl mt-4 bg-primary-600 hover:bg-primary-700 text-white">
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (lang === 'ar' ? 'إرسال رابط الاستعادة' : 'Send Password Reset Email')}
                   </Button>
 
                   <button
@@ -220,12 +231,12 @@ export function LoginPage({ onSignUpClick }: LoginPageProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-surface-900 via-surface-900/80 to-transparent"></div>
         <div className="relative z-10 max-w-lg text-right">
           <h2 className="text-4xl md:text-5xl font-black text-white leading-tight mb-6">
-            {lang === 'ar' ? 'مرحباً بك في نظام إدارة المغاسل المتكامل' : 'Welcome to the Integrated Laundry Management System'}
+            {lang === 'ar' ? 'مرحباً بك في نظام إدارة المنشآت المتكامل' : 'Welcome to the Integrated Enterprise Management System'}
           </h2>
           <p className="text-lg text-surface-300 leading-relaxed">
             {lang === 'ar' 
-              ? 'المنصة الأذكى والأسهل لإدارة مبيعات وعملاء وحسابات مغسلتك باحترافية عالية وعزل بيانات تام.'
-              : 'The smartest and easiest platform to manage your laundry sales, customers, and accounts with high professionalism and complete data isolation.'}
+              ? 'المنصة الأذكى والأسهل لإدارة مبيعات وعملاء وحسابات منشأتك باحترافية عالية وعزل بيانات تام.'
+              : 'The smartest platform to manage sales, customers, and accounts with high security and tenant data isolation.'}
           </p>
         </div>
       </div>
