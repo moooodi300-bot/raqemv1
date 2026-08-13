@@ -53,6 +53,10 @@ export function ResetPasswordPage({ onGoToLogin, lang: initialLang = 'ar' }: Res
 
         if (session || hasHashToken || hasQueryToken) {
           setIsTokenValid(true);
+          // Clean sensitive auth token parameters from visible browser URL bar
+          if (window.location.hash || window.location.search) {
+            window.history.replaceState({}, document.title, '/reset-password');
+          }
         } else {
           setIsTokenValid(false);
         }
@@ -64,6 +68,9 @@ export function ResetPasswordPage({ onGoToLogin, lang: initialLang = 'ar' }: Res
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsTokenValid(true);
+        if (window.location.hash || window.location.search) {
+          window.history.replaceState({}, document.title, '/reset-password');
+        }
       }
     });
 
@@ -136,7 +143,14 @@ export function ResetPasswordPage({ onGoToLogin, lang: initialLang = 'ar' }: Res
 
         <Card className="border-0 shadow-xl bg-white rounded-3xl">
           <CardBody className="p-6 md:p-8">
-            {isTokenValid === false ? (
+            {isTokenValid === null ? (
+              <div className="text-center py-8 space-y-3">
+                <Loader2 className="w-8 h-8 text-primary-600 animate-spin mx-auto" />
+                <p className="text-sm font-bold text-surface-600">
+                  {lang === 'ar' ? 'جاري التحقق من جلسة استعادة كلمة المرور...' : 'Verifying recovery session...'}
+                </p>
+              </div>
+            ) : isTokenValid === false ? (
               <div className="text-center space-y-4 py-4">
                 <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
                   <AlertCircle className="w-6 h-6" />

@@ -90,7 +90,7 @@ function Gate() {
       if (
         path.includes('/reset-password') ||
         hash.includes('type=recovery') ||
-        hash.includes('access_token') ||
+        (hash.includes('access_token') && hash.includes('recovery')) ||
         search.includes('type=recovery') ||
         search.includes('code=') ||
         search.includes('token_hash=')
