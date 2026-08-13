@@ -36,7 +36,7 @@ export function validatePassword(password: string): PasswordValidationResult {
     errorsAr.push('يجب أن تحتوي على رقم واحد على الأقل (0-9)');
   }
 
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
+  if (!/[^a-zA-Z0-9]/.test(password)) {
     errors.push('Must contain at least one special character (!@#$%^&*)');
     errorsAr.push('يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)');
   }
