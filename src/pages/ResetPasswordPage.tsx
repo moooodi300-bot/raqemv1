@@ -1,39 +1,59 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Key, Shield, AlertCircle, CheckCircle2, ArrowRight, Loader2, Building2 } from 'lucide-react';
+import { Key, Shield, AlertCircle, CheckCircle2, ArrowRight, Loader2, Building2, Eye, EyeOff, Globe } from 'lucide-react';
 import { Card, CardBody, Button } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { validatePassword, PASSWORD_REQUIREMENTS_HINT_AR, PASSWORD_REQUIREMENTS_HINT_EN } from '@/lib/passwordValidator';
 
 interface ResetPasswordPageProps {
-  onGoToLogin: () => void;
+  onGoToLogin: (mode?: 'signin' | 'forgot_password') => void;
   lang?: 'ar' | 'en';
 }
 
-export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPageProps) {
+export function ResetPasswordPage({ onGoToLogin, lang: initialLang = 'ar' }: ResetPasswordPageProps) {
+  const [lang, setLang] = useState<'ar' | 'en'>(initialLang);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null);
 
+  const toggleLanguage = () => {
+    const nextLang = lang === 'ar' ? 'en' : 'ar';
+    setLang(nextLang);
+    document.documentElement.dir = nextLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = nextLang;
+  };
+
   useEffect(() => {
-    // Check if recovery session or URL hash access_token exists
+    // Check if recovery session or URL code/hash access_token exists
     const checkSession = async () => {
       try {
         const hash = window.location.hash;
         const search = window.location.search;
-        
-        // Supabase implicit grant or query params
+        const searchParams = new URLSearchParams(search);
+        const code = searchParams.get('code');
+
+        // PKCE Code exchange
+        if (code) {
+          const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (!exchangeError && exchangeData?.session) {
+            setIsTokenValid(true);
+            return;
+          }
+        }
+
+        // Implicit grant / hash recovery token checks
         const hasHashToken = hash.includes('access_token') || hash.includes('type=recovery');
-        const hasQueryToken = search.includes('token') || search.includes('type=recovery');
-        
+        const hasQueryToken = search.includes('token') || search.includes('type=recovery') || search.includes('token_hash');
+
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session || hasHashToken || hasQueryToken) {
           setIsTokenValid(true);
         } else {
-          // If no recovery session or hash, link is invalid or expired
           setIsTokenValid(false);
         }
       } catch {
@@ -41,9 +61,8 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
       }
     };
 
-    // Listen for auth state change
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsTokenValid(true);
       }
     });
@@ -90,7 +109,18 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-50 p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex items-center justify-center bg-surface-50 p-4 relative" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="absolute top-4 left-4 lg:top-8 lg:left-8">
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur border border-surface-200 rounded-xl text-sm font-bold text-surface-600 hover:text-surface-900 shadow-sm transition-all"
+        >
+          <Globe className="w-4 h-4" />
+          {lang === 'ar' ? 'English' : 'العربية'}
+        </button>
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary-600 to-blue-600 text-white shadow-xl shadow-primary-900/20 mb-4">
@@ -120,10 +150,10 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
                     : 'The recovery link seems to have expired or been used already. Please request a new link.'}
                 </p>
                 <Button
-                  onClick={onGoToLogin}
+                  onClick={() => onGoToLogin('forgot_password')}
                   className="w-full h-11 text-sm font-bold rounded-xl mt-4 bg-primary-600 hover:bg-primary-700 text-white"
                 >
-                  {lang === 'ar' ? 'طلب رابط جديد (العودة لتسجيل الدخول)' : 'Request New Reset Link'}
+                  {lang === 'ar' ? 'إرسال رابط جديد' : 'Send New Reset Link'}
                 </Button>
               </div>
             ) : success ? (
@@ -132,18 +162,18 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-emerald-900">
-                  {lang === 'ar' ? 'تم تحديث كلمة المرور بنجاح' : 'Password updated successfully'}
+                  {lang === 'ar' ? 'تم تغيير كلمة المرور بنجاح' : 'Password updated successfully'}
                 </h3>
                 <p className="text-sm text-surface-600">
                   {lang === 'ar'
-                    ? 'يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة الخاص بك.'
+                    ? 'يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة الخاصة بك.'
                     : 'You can now log in using your new password.'}
                 </p>
                 <Button
-                  onClick={onGoToLogin}
+                  onClick={() => onGoToLogin('signin')}
                   className="w-full h-11 text-sm font-bold rounded-xl mt-4 bg-primary-600 hover:bg-primary-700 text-white"
                 >
-                  {lang === 'ar' ? 'الذهاب لتسجيل الدخول' : 'Go to Login'}
+                  {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
                 </Button>
               </div>
             ) : (
@@ -164,14 +194,21 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
                       <Key className="h-5 w-5 text-surface-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
                       dir="ltr"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full ps-11 pe-4 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none text-left"
+                      className="w-full ps-11 pe-10 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none text-left"
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute inset-y-0 end-0 pe-3 flex items-center text-surface-400 hover:text-surface-600"
+                    >
+                      {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   <p className="text-xs text-surface-500 font-medium pt-1">
                     🔒 {lang === 'ar' ? PASSWORD_REQUIREMENTS_HINT_AR : PASSWORD_REQUIREMENTS_HINT_EN}
@@ -180,21 +217,28 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-surface-700">
-                    {lang === 'ar' ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
+                    {lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm Password'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
                       <Shield className="h-5 w-5 text-surface-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showConfirmPassword ? 'text' : 'password'}
                       dir="ltr"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full ps-11 pe-4 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none text-left"
+                      className="w-full ps-11 pe-10 py-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none text-left"
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 end-0 pe-3 flex items-center text-surface-400 hover:text-surface-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -206,15 +250,15 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   ) : lang === 'ar' ? (
-                    'حفظ كلمة المرور الجديدة'
+                    'تغيير كلمة المرور'
                   ) : (
-                    'Save New Password'
+                    'Update Password'
                   )}
                 </Button>
 
                 <button
                   type="button"
-                  onClick={onGoToLogin}
+                  onClick={() => onGoToLogin('signin')}
                   className="w-full flex items-center justify-center gap-2 py-2 text-sm font-bold text-surface-600 hover:text-surface-900 transition-colors"
                 >
                   <ArrowRight className="w-4 h-4" />
@@ -228,3 +272,4 @@ export function ResetPasswordPage({ onGoToLogin, lang = 'ar' }: ResetPasswordPag
     </div>
   );
 }
+

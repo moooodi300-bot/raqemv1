@@ -6,11 +6,12 @@ import { isValidEmail } from '@/lib/emailValidator';
 
 interface LoginPageProps {
   onSignUpClick: () => void;
+  initialMode?: 'signin' | 'forgot_password';
 }
 
-export function LoginPage({ onSignUpClick }: LoginPageProps) {
+export function LoginPage({ onSignUpClick, initialMode = 'signin' }: LoginPageProps) {
   const { signIn, resetPassword, lang, setLang } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'forgot_password'>('signin');
+  const [mode, setMode] = useState<'signin' | 'forgot_password'>(initialMode);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

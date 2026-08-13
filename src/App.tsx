@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { Layout } from '@/components/Layout';
 import { canAccess, type ModuleKey } from '@/lib/rbac';
 import { generateMockData } from '@/lib/mockDataGenerator';
@@ -75,18 +76,40 @@ function AppContent() {
 function Gate() {
   const { session, booting, setRole, setStaffName, signOut, organization, lang } = useAuth();
   const [showSignUp, setShowSignUp] = useState(false);
+  const [loginInitialMode, setLoginInitialMode] = useState<'signin' | 'forgot_password'>('signin');
   const { activeEmployee, setActiveEmployee } = useAuth();
   const [isResetRoute, setIsResetRoute] = useState(false);
 
   const [mockReady, setMockReady] = useState(false);
 
   useEffect(() => {
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    const search = window.location.search;
-    if (path.includes('/reset-password') || hash.includes('type=recovery') || search.includes('type=recovery')) {
-      setIsResetRoute(true);
-    }
+    const checkIsReset = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      const search = window.location.search;
+      if (
+        path.includes('/reset-password') ||
+        hash.includes('type=recovery') ||
+        hash.includes('access_token') ||
+        search.includes('type=recovery') ||
+        search.includes('code=') ||
+        search.includes('token_hash=')
+      ) {
+        setIsResetRoute(true);
+      }
+    };
+
+    checkIsReset();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResetRoute(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -105,10 +128,16 @@ function Gate() {
   }, []);
 
   if (isResetRoute) {
-    return <ResetPasswordPage lang={lang} onGoToLogin={() => {
-      setIsResetRoute(false);
-      window.history.pushState({}, '', '/');
-    }} />;
+    return (
+      <ResetPasswordPage
+        lang={lang}
+        onGoToLogin={(mode) => {
+          if (mode) setLoginInitialMode(mode);
+          setIsResetRoute(false);
+          window.history.pushState({}, '', '/');
+        }}
+      />
+    );
   }
 
   if (booting) {
@@ -123,7 +152,12 @@ function Gate() {
     if (showSignUp) {
       return <SignUpPage onLoginClick={() => setShowSignUp(false)} />;
     }
-    return <LoginPage onSignUpClick={() => setShowSignUp(true)} />;
+    return (
+      <LoginPage
+        initialMode={loginInitialMode}
+        onSignUpClick={() => setShowSignUp(true)}
+      />
+    );
   }
 
   if (!mockReady) {
